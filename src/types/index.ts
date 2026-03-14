@@ -4,7 +4,9 @@ export interface Goal {
   id: string;
   text: string;
   completed: boolean;
+  completedAt?: number;
   createdAt: number;
+  daySelected?: string; // e.g. "Monday", "Tuesday"
 }
 
 export interface Project {

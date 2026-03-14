@@ -5,7 +5,7 @@ import { AppState, Goal, LearningEntry, Project, Week, Tag } from '../types';
 
 interface StoreState extends AppState {
   // Actions
-  addGoal: (weekId: string, text: string) => void;
+  addGoal: (weekId: string, text: string, daySelected?: string) => void;
   toggleGoal: (weekId: string, goalId: string) => void;
   removeGoal: (weekId: string, goalId: string) => void;
   addLearning: (weekId: string, text: string, tags: Tag[], relatesTo?: string[]) => void;
@@ -38,7 +38,7 @@ export const useStore = create<StoreState>()(
           };
         }),
 
-      addGoal: (weekId, text) =>
+      addGoal: (weekId, text, daySelected) =>
         set((state) => {
           const week = state.weeks[weekId];
           if (!week) return state;
@@ -48,6 +48,7 @@ export const useStore = create<StoreState>()(
             text,
             completed: false,
             createdAt: Date.now(),
+            daySelected
           };
 
           return {
@@ -71,9 +72,17 @@ export const useStore = create<StoreState>()(
               ...state.weeks,
               [weekId]: {
                 ...week,
-                goals: week.goals.map((g) =>
-                  g.id === goalId ? { ...g, completed: !g.completed } : g
-                ),
+                goals: week.goals.map((g) => {
+                  if (g.id === goalId) {
+                    const isNowCompleted = !g.completed;
+                    return { 
+                      ...g, 
+                      completed: isNowCompleted,
+                      completedAt: isNowCompleted ? Date.now() : undefined
+                    };
+                  }
+                  return g;
+                }),
               },
             },
           };

@@ -46,7 +46,7 @@ export default function InsightsGraph({
       const col = index % cols;
 
       nodes.push({
-        id: week.id,
+        id: `week:${week.id}`,
         position: { x: col * 250, y: row * 150 },
         data: { label },
         style: {
@@ -78,9 +78,9 @@ export default function InsightsGraph({
 
         if (sharedCount >= 2) {
           edges.push({
-            id: `edge-week-${prevWeek.id}-${week.id}`,
-            source: prevWeek.id,
-            target: week.id,
+            id: `edge:week:${prevWeek.id}-week:${week.id}`,
+            source: `week:${prevWeek.id}`,
+            target: `week:${week.id}`,
             animated: true,
             style: { stroke: 'var(--muted-foreground)', opacity: 0.3, strokeWidth: 1 }
           });
@@ -98,7 +98,7 @@ export default function InsightsGraph({
       const col = index % projCols;
       
       nodes.push({
-        id: proj.id,
+        id: `proj:${proj.id}`,
         position: { x: col * 350, y: -200 - (row * 150) },
         data: { label: proj.name },
         style: {
@@ -132,9 +132,9 @@ export default function InsightsGraph({
 
         if (hasProjTag) {
           edges.push({
-            id: `edge-proj-${proj.id}-${week.id}`,
-            source: proj.id,
-            target: week.id,
+            id: `edge:proj:${proj.id}-week:${week.id}`,
+            source: `proj:${proj.id}`,
+            target: `week:${week.id}`,
             animated: false,
             style: { stroke: 'var(--primary)', opacity: 0.6, strokeWidth: 2 }
           });

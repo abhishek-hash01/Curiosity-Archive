@@ -6,7 +6,7 @@ export interface Goal {
   completed: boolean;
   completedAt?: number;
   createdAt: number;
-  daySelected?: string; // e.g. "Monday", "Tuesday"
+  daysSelected?: string[]; // Arrays of days e.g. ["Monday", "Tuesday"]
 }
 
 export interface Project {

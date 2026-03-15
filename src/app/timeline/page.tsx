@@ -52,7 +52,7 @@ function WeekCard({ week }: { week: ReturnType<typeof useStore.getState>['weeks'
     return parts.map((part, i) => {
       if (part.startsWith('#')) {
         return (
-          <span key={i} className="text-primary font-mono bg-primary/10 px-1 py-0.5 rounded-sm inline-block">
+          <span key={i} className="text-purplePrimary font-mono bg-purpleSoft px-1 py-0.5 rounded-sm inline-block">
             {part.toLowerCase()}
           </span>
         );
@@ -138,7 +138,7 @@ function WeekCard({ week }: { week: ReturnType<typeof useStore.getState>['weeks'
                       {l.tags.length > 0 && (
                         <div className="flex gap-1 flex-wrap mt-1">
                           {l.tags.map(t => (
-                            <span key={t} className="text-[10px] font-mono bg-primary/10 text-primary px-1 py-0.5 rounded-sm">#{t}</span>
+                            <span key={t} className="text-[10px] font-mono bg-purpleSoft text-purplePrimary px-1 py-0.5 rounded-sm">#{t}</span>
                           ))}
                         </div>
                       )}

@@ -104,7 +104,7 @@ export default function InsightsGraph({
         style: {
           background: 'var(--primary)',
           color: 'var(--primary-foreground)',
-          border: '1px solid #4a336e', // Darker purple border mapping
+          border: '1px solid var(--purple-secondary)', // Use the secondary line graph color
           borderRadius: '12px',
           padding: '16px',
           width: 220,
@@ -112,7 +112,7 @@ export default function InsightsGraph({
           fontSize: '16px',
           fontFamily: 'var(--font-sans)',
           textShadow: '0 1px 2px rgba(0,0,0,0.3)', // embossed text
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3), 0 4px 6px -1px rgba(107, 76, 154, 0.3), 0 2px 4px -2px rgba(107, 76, 154, 0.3)', // jewel-like purple extrusions
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3), 0 4px 6px -1px var(--purple-secondary), 0 2px 4px -2px var(--purple-secondary)',
           textAlign: 'center',
         }
       });
@@ -136,7 +136,7 @@ export default function InsightsGraph({
             source: `proj:${proj.id}`,
             target: `week:${week.id}`,
             animated: false,
-            style: { stroke: 'var(--primary)', opacity: 0.6, strokeWidth: 2 }
+            style: { stroke: 'var(--purple-secondary)', opacity: 0.8, strokeWidth: 2 }
           });
         }
       });

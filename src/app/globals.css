@@ -10,23 +10,36 @@
   --color-border: var(--border);
   --color-ring: var(--ring);
 
+  /* Field Notebook Theme Aliases */
+  --color-paper: var(--background);
+  --color-paperCard: var(--muted);
+  --color-purplePrimary: var(--primary);
+  --color-purpleSecondary: var(--purple-secondary);
+  --color-purpleSoft: var(--purple-soft);
+  --color-textPrimary: var(--foreground);
+  --color-textMuted: var(--muted-foreground);
+
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
 }
 
 :root {
-  /* Skeuomorphic Light Theme - Beige & Purplish Accents */
+  /* Field Notebook Theme - Purple Variant */
   --background: #fbf9f6; /* Warm off-white/beige paper */
-  --foreground: #2d2a32; /* Deep warm gray, softer than pure black */
+  --foreground: #2a2a2a; /* Deep warm gray/almost black */
   
-  --primary: #6b4c9a; /* Rich, muted purple */
+  --primary: #6b4c9a; /* Deep Purple accent */
   --primary-foreground: #ffffff;
   
-  --muted: #f0ebe1; /* Darker beige/sand for secondary elements */
-  --muted-foreground: #7a7585; /* Purple-tinted gray */
+  --muted: #f3efe7; /* Slightly darker paper tone for UI cards */
+  --muted-foreground: #6b6b6b; /* Muted text */
   
   --border: #e2dcd0; /* Subtle warm border */
   --ring: #6b4c9a;
+
+  /* Additional Purple Accents */
+  --purple-secondary: #8c6bcb; /* Soft Purple */
+  --purple-soft: #efe7fa; /* Light Accent / Hover */
 }
 
 body {
@@ -59,12 +72,34 @@ body {
 .react-flow__node {
   color: var(--foreground) !important;
   border-radius: 6px !important;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
+
+.react-flow__node:hover {
+  /* Graph background hover */
+  background-color: var(--purple-soft) !important;
+  border-color: var(--purple-secondary) !important;
+}
+
 .react-flow__handle {
   width: 6px !important;
   height: 6px !important;
   border: none !important;
 }
+
 .react-flow__edge-path {
   stroke: var(--border) !important;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+}
+
+.react-flow__edge:hover .react-flow__edge-path,
+.react-flow__edge.selected .react-flow__edge-path {
+  /* Graph edge highlight */
+  stroke: var(--purple-secondary) !important;
+  stroke-width: 2px !important;
+}
+
+.react-flow__node.selected {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px var(--purple-soft) !important;
 }

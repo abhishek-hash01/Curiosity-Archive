@@ -46,7 +46,7 @@ export function LearningStream({ weekId }: { weekId: string }) {
     return parts.map((part, i) => {
       if (part.startsWith('#')) {
         return (
-          <span key={i} className="text-primary font-mono bg-primary/10 px-1 py-0.5 rounded-sm">
+          <span key={i} className="text-purplePrimary font-mono bg-purpleSoft px-1 py-0.5 rounded-sm">
             {part.toLowerCase()}
           </span>
         );

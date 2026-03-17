@@ -1,12 +1,27 @@
-import { format, startOfWeek } from 'date-fns';
+import { format, startOfWeek, addDays } from 'date-fns';
+
+/**
+ * Returns the effective "current" date for week calculations.
+ * If today is Sunday, we treat tomorrow (Monday) as the reference date
+ * so that Sunday planning goes into the upcoming week.
+ */
+function getEffectiveDate(): Date {
+  const now = new Date();
+  // 0 = Sunday
+  if (now.getDay() === 0) {
+    return addDays(now, 1);
+  }
+  return now;
+}
 
 export function getCurrentWeekId(): string {
   // Format: yyyy-'W'II (e.g., 2024-W12)
-  return format(new Date(), "yyyy-'W'II");
+  // On Sundays, look ahead to next week so planning goes into the right week.
+  return format(getEffectiveDate(), "yyyy-'W'II");
 }
 
 export function getCurrentWeekStartDate(): string {
-  return startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString();
+  return startOfWeek(getEffectiveDate(), { weekStartsOn: 1 }).toISOString();
 }
 
 /**

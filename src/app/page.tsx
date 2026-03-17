@@ -9,6 +9,7 @@ import { WeeklyReflection } from '@/components/WeeklyReflection';
 
 export default function ThisWeekPage() {
   const [weekId, setWeekId] = useState<string | null>(null);
+  const [isSunday, setIsSunday] = useState(false);
   const initializeWeek = useStore((state) => state.initializeWeek);
 
   useEffect(() => {
@@ -18,6 +19,7 @@ export default function ThisWeekPage() {
     
     initializeWeek(currentId, startDate);
     setWeekId(currentId);
+    setIsSunday(new Date().getDay() === 0);
   }, [initializeWeek]);
 
   if (!weekId) {
@@ -33,6 +35,11 @@ export default function ThisWeekPage() {
       <header className="px-8 py-6 border-b border-border shrink-0">
         <h1 className="text-2xl font-semibold tracking-tight">This Week</h1>
         <p className="text-sm text-muted-foreground font-mono mt-1">ID: {weekId}</p>
+        {isSunday && (
+          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-1.5 inline-block">
+            📅 It&apos;s Sunday — tasks you add today are being planned for <strong>next week</strong>.
+          </p>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto w-full px-8 py-8 md:grid md:grid-cols-2 lg:grid-cols-5 gap-12">

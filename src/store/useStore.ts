@@ -14,6 +14,7 @@ interface StoreState extends AppState {
   removeProject: (projectId: string) => void;
   importData: (data: AppState) => void;
   initializeWeek: (weekId: string, startDate: string) => void;
+  mergeWeekInto: (sourceWeekId: string, targetWeekId: string) => void;
 }
 
 export const useStore = create<StoreState>()(
@@ -171,6 +172,36 @@ export const useStore = create<StoreState>()(
           weeks: data.weeks || {},
           projects: data.projects || {},
         })),
+
+      mergeWeekInto: (sourceWeekId, targetWeekId) =>
+        set((state) => {
+          const source = state.weeks[sourceWeekId];
+          const target = state.weeks[targetWeekId];
+          if (!source || !target) return state;
+
+          // Merge goals — skip any already present in target (by id)
+          const existingGoalIds = new Set(target.goals.map((g) => g.id));
+          const newGoals = source.goals
+            .filter((g) => !existingGoalIds.has(g.id))
+            .map((g) => ({ ...g, completed: false, completedAt: undefined }));
+
+          // Merge learnings — skip duplicates
+          const existingLearningIds = new Set(target.learnings.map((l) => l.id));
+          const newLearnings = source.learnings.filter(
+            (l) => !existingLearningIds.has(l.id)
+          );
+
+          return {
+            weeks: {
+              ...state.weeks,
+              [targetWeekId]: {
+                ...target,
+                goals: [...target.goals, ...newGoals],
+                learnings: [...target.learnings, ...newLearnings],
+              },
+            },
+          };
+        }),
     }),
     {
       name: 'curiosity-archive-storage', // name of item in the storage (must be unique)

@@ -38,7 +38,7 @@ export function GoalsList({ weekId }: { weekId: string }) {
 
   // Goals visible for the current view day + anytime goals
   const dayGoals = week.goals.filter((g) => g.daySelected === viewDay);
-  const anytimeGoals = week.goals.filter((g) => !g.daySelected);
+  const anytimeGoals = week.goals.filter((g) => !g.daySelected || g.daySelected === 'Sunday');
 
   // Day navigator
   const dayIdx = DAYS_OF_WEEK.findIndex((d) => d.label === viewDay);

@@ -4,28 +4,33 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useStore } from '@/store/useStore';
 import { useEffect, useState } from 'react';
-import { getCurrentWeekId } from '@/utils/helpers';
+import { getCurrentWeekId, getRealCurrentWeekId } from '@/utils/helpers';
 
 const DAY_MAP: Record<number, string> = {
   1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday',
-  5: 'Friday', 6: 'Saturday', 0: 'Sunday',
+  5: 'Friday', 6: 'Saturday',
+  0: 'Monday', // Sunday → treat as Monday (planning for next week)
 };
 
 export function SidebarNav() {
   const pathname = usePathname();
   const weeks = useStore((state) => state.weeks);
-  const [weekId, setWeekId] = useState<string | null>(null);
+  const [weekId, setWeekId] = useState<string | null>(null);         // planning week
+  const [realWeekId, setRealWeekId] = useState<string | null>(null); // reflection week
 
   useEffect(() => {
     setWeekId(getCurrentWeekId());
+    setRealWeekId(getRealCurrentWeekId());
   }, []);
 
-  const currentWeek = weekId ? weeks[weekId] : null;
+  const currentWeek = weekId ? weeks[weekId] : null;         // goals/title week
+  const realCurrentWeek = realWeekId ? weeks[realWeekId] : null; // insights week
   const todayLabel = DAY_MAP[new Date().getDay()];
 
   const totalGoals = currentWeek?.goals.length ?? 0;
   const completedGoals = currentWeek?.goals.filter(g => g.completed).length ?? 0;
-  const totalInsights = currentWeek?.learnings.length ?? 0;
+  // Insights live on the real current week (Sunday split), fall back to planning week on other days
+  const totalInsights = (realCurrentWeek ?? currentWeek)?.learnings.length ?? 0;
 
   const dueTodayCount = currentWeek?.goals.filter(
     g => g.daySelected === todayLabel && !g.completed

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useStore } from '@/store/useStore';
-import { getCurrentWeekId, getCurrentWeekStartDate } from '@/utils/helpers';
+import { getCurrentWeekId, getCurrentWeekStartDate, getRealCurrentWeekId, getRealCurrentWeekStartDate } from '@/utils/helpers';
 import { GoalsList } from '@/components/GoalsList';
 import { LearningStream } from '@/components/LearningStream';
 import { WeeklyReflection } from '@/components/WeeklyReflection';
@@ -30,7 +30,8 @@ function getWeekRange(startDate: string): string {
 }
 
 export default function ThisWeekPage() {
-  const [weekId, setWeekId] = useState<string | null>(null);
+  const [weekId, setWeekId] = useState<string | null>(null);           // planning week (next week on Sundays)
+  const [reflectionWeekId, setReflectionWeekId] = useState<string | null>(null); // real current week
   const [isSunday, setIsSunday] = useState(false);
   const [weekRange, setWeekRange] = useState('');
   const [greeting, setGreeting] = useState('');
@@ -45,8 +46,13 @@ export default function ThisWeekPage() {
   useEffect(() => {
     const currentId = getCurrentWeekId();
     const startDate = getCurrentWeekStartDate();
+    const realId = getRealCurrentWeekId();
+    const realStart = getRealCurrentWeekStartDate();
     initializeWeek(currentId, startDate);
+    // Also ensure real current week exists (for reflection/insights on Sundays)
+    if (realId !== currentId) initializeWeek(realId, realStart);
     setWeekId(currentId);
+    setReflectionWeekId(realId);
     setIsSunday(new Date().getDay() === 0);
     setGreeting(getGreeting());
     setDaysLeft(getDaysLeftLabel());
@@ -115,13 +121,13 @@ export default function ThisWeekPage() {
         <div className="flex flex-col lg:col-span-2 space-y-10 h-full">
           <GoalsList weekId={weekId} />
           <div className="pt-6 border-t border-border/50">
-            <WeeklyReflection weekId={weekId} />
+            <WeeklyReflection weekId={reflectionWeekId ?? weekId ?? ''} />
           </div>
         </div>
 
         {/* Right Column: Learnings */}
         <div className="lg:col-span-3 h-full mb-[50vh]">
-          <LearningStream weekId={weekId} />
+          <LearningStream weekId={reflectionWeekId ?? weekId ?? ''} />
         </div>
       </div>
     </div>

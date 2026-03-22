@@ -25,6 +25,19 @@ export function getCurrentWeekStartDate(): string {
 }
 
 /**
+ * Always returns the REAL current ISO week (no Sunday override).
+ * Used for Weekly Reflection and Archived Insights, which belong to
+ * the week being closed out — not the one being planned.
+ */
+export function getRealCurrentWeekId(): string {
+  return format(new Date(), "yyyy-'W'II");
+}
+
+export function getRealCurrentWeekStartDate(): string {
+  return startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString();
+}
+
+/**
  * Extracts tags from a string. E.g. "Hello #world" -> ["world"]
  */
 export function extractTags(text: string): string[] {

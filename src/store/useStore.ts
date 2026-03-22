@@ -16,6 +16,9 @@ interface StoreState extends AppState {
   initializeWeek: (weekId: string, startDate: string) => void;
   mergeWeekInto: (sourceWeekId: string, targetWeekId: string) => void;
   removeLearning: (weekId: string, learningId: string) => void;
+  updateLearning: (weekId: string, learningId: string, newText: string, newTags: string[]) => void;
+  updateWeekTitle: (weekId: string, title: string) => void;
+  updateReflectionSections: (weekId: string, sections: { wentWell: string; surprised: string; different: string }) => void;
 }
 
 export const useStore = create<StoreState>()(
@@ -215,6 +218,47 @@ export const useStore = create<StoreState>()(
                 ...week,
                 learnings: week.learnings.filter((l) => l.id !== learningId),
               },
+            },
+          };
+        }),
+
+      updateWeekTitle: (weekId, title) =>
+        set((state) => {
+          const week = state.weeks[weekId];
+          if (!week) return state;
+          return {
+            weeks: {
+              ...state.weeks,
+              [weekId]: { ...week, weekTitle: title },
+            },
+          };
+        }),
+
+      updateLearning: (weekId, learningId, newText, newTags) =>
+        set((state) => {
+          const week = state.weeks[weekId];
+          if (!week) return state;
+          return {
+            weeks: {
+              ...state.weeks,
+              [weekId]: {
+                ...week,
+                learnings: week.learnings.map((l) =>
+                  l.id === learningId ? { ...l, text: newText, tags: newTags } : l
+                ),
+              },
+            },
+          };
+        }),
+
+      updateReflectionSections: (weekId, sections) =>
+        set((state) => {
+          const week = state.weeks[weekId];
+          if (!week) return state;
+          return {
+            weeks: {
+              ...state.weeks,
+              [weekId]: { ...week, reflectionSections: sections },
             },
           };
         }),

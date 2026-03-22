@@ -26,9 +26,15 @@ export interface LearningEntry {
 export interface Week {
   id: string; // e.g., "2023-W41"
   startDate: string; // ISO date string
+  weekTitle?: string; // optional theme e.g. "Outreach Heavy"
   goals: Goal[];
   learnings: LearningEntry[];
-  weekReflection?: string;
+  weekReflection?: string; // legacy single-text
+  reflectionSections?: {
+    wentWell: string;
+    surprised: string;
+    different: string;
+  };
 }
 
 // Utility type for the overall app state

@@ -104,14 +104,21 @@ function WeekCard({
       <div className="flex-1 flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h3 className="text-lg font-medium tracking-tight">
-              Week of {format(parsedDate, 'MMM d, yyyy')}
-              {isCurrentWeek && (
-                <span className="ml-2 text-xs font-mono text-purplePrimary bg-purpleSoft px-1.5 py-0.5 rounded-sm">
-                  current
+            <div className="flex items-center flex-wrap gap-2">
+              <h3 className="text-lg font-medium tracking-tight">
+                Week of {format(parsedDate, 'MMM d, yyyy')}
+                {isCurrentWeek && (
+                  <span className="ml-2 text-xs font-mono text-purplePrimary bg-purpleSoft px-1.5 py-0.5 rounded-sm">
+                    current
+                  </span>
+                )}
+              </h3>
+              {week.weekTitle && (
+                <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
+                  {week.weekTitle}
                 </span>
               )}
-            </h3>
+            </div>
             <div className="flex gap-4 mt-1 text-xs font-mono text-muted-foreground">
               <span>{insightCount} insights</span>
               <span>·</span>

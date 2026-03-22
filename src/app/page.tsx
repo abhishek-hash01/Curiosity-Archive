@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useStore } from '@/store/useStore';
 import { getCurrentWeekId, getCurrentWeekStartDate } from '@/utils/helpers';
 import { GoalsList } from '@/components/GoalsList';
@@ -16,7 +16,7 @@ function getGreeting(): string {
 }
 
 function getDaysLeftLabel(): string {
-  const day = new Date().getDay(); // 0 = Sunday
+  const day = new Date().getDay();
   if (day === 0) return 'Last day of the week';
   const daysLeft = 7 - day;
   if (daysLeft === 1) return '1 day left';
@@ -35,12 +35,16 @@ export default function ThisWeekPage() {
   const [weekRange, setWeekRange] = useState('');
   const [greeting, setGreeting] = useState('');
   const [daysLeft, setDaysLeft] = useState('');
+  const [titleInput, setTitleInput] = useState('');
+  const titleRef = useRef<HTMLInputElement>(null);
+
   const initializeWeek = useStore((state) => state.initializeWeek);
+  const updateWeekTitle = useStore((state) => state.updateWeekTitle);
+  const week = useStore((state) => weekId ? state.weeks[weekId] : null);
 
   useEffect(() => {
     const currentId = getCurrentWeekId();
     const startDate = getCurrentWeekStartDate();
-
     initializeWeek(currentId, startDate);
     setWeekId(currentId);
     setIsSunday(new Date().getDay() === 0);
@@ -48,6 +52,17 @@ export default function ThisWeekPage() {
     setDaysLeft(getDaysLeftLabel());
     setWeekRange(getWeekRange(startDate));
   }, [initializeWeek]);
+
+  // Sync title input when week loads
+  useEffect(() => {
+    if (week?.weekTitle !== undefined) {
+      setTitleInput(week.weekTitle);
+    }
+  }, [week?.weekTitle]);
+
+  const handleTitleBlur = () => {
+    if (weekId) updateWeekTitle(weekId, titleInput.trim());
+  };
 
   if (!weekId) {
     return (
@@ -59,17 +74,29 @@ export default function ThisWeekPage() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <header className="px-8 py-6 border-b border-border shrink-0">
+      <header className="px-8 py-5 border-b border-border shrink-0">
         <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <p className="text-xs font-mono text-muted-foreground mb-1">{greeting} —</p>
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-mono text-muted-foreground">{greeting} —</p>
             <h1 className="text-2xl font-semibold tracking-tight">This Week</h1>
-            <p className="text-sm text-muted-foreground font-mono mt-1">{weekRange}</p>
+            <p className="text-sm text-muted-foreground font-mono">{weekRange}</p>
           </div>
-          <div className="text-right shrink-0 mt-1">
+          <div className="flex flex-col items-end gap-1.5 shrink-0 mt-1">
             <span className="text-sm font-medium text-primary font-mono">{daysLeft}</span>
+            {/* Editable week title / theme */}
+            <input
+              ref={titleRef}
+              type="text"
+              value={titleInput}
+              onChange={(e) => setTitleInput(e.target.value)}
+              onBlur={handleTitleBlur}
+              onKeyDown={(e) => { if (e.key === 'Enter') titleRef.current?.blur(); }}
+              placeholder="Name this week…"
+              className="text-xs font-mono text-right bg-transparent border-b border-transparent hover:border-border focus:border-primary/50 focus:outline-none transition-colors text-primary placeholder:text-muted-foreground/40 w-44"
+            />
           </div>
         </div>
+
         {isSunday && (
           <div className="mt-3 flex items-center gap-3 bg-purpleSoft border border-primary/25 rounded-lg px-4 py-2.5">
             <span className="text-primary text-xs font-bold shrink-0">◆</span>
@@ -85,7 +112,6 @@ export default function ThisWeekPage() {
         {/* Left Column: Goals & Reflection */}
         <div className="flex flex-col lg:col-span-2 space-y-10 h-full">
           <GoalsList weekId={weekId} />
-
           <div className="pt-6 border-t border-border/50">
             <WeeklyReflection weekId={weekId} />
           </div>

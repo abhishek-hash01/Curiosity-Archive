@@ -11,12 +11,12 @@ const DAYS_OF_WEEK = [
   { label: 'Thursday', short: 'T' },
   { label: 'Friday', short: 'F' },
   { label: 'Saturday', short: 'S' },
-  { label: 'Sunday', short: 'S' },
 ];
 
 const DAY_INDEX_MAP: Record<number, string> = {
   1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday',
-  5: 'Friday', 6: 'Saturday', 0: 'Sunday',
+  5: 'Friday', 6: 'Saturday',
+  0: 'Monday', // On Sundays, default to Monday (first day of week being planned)
 };
 
 export function GoalsList({ weekId }: { weekId: string }) {
@@ -42,8 +42,8 @@ export function GoalsList({ weekId }: { weekId: string }) {
 
   // Day navigator
   const dayIdx = DAYS_OF_WEEK.findIndex((d) => d.label === viewDay);
-  const prevDay = DAYS_OF_WEEK[(dayIdx - 1 + 7) % 7].label;
-  const nextDay = DAYS_OF_WEEK[(dayIdx + 1) % 7].label;
+  const prevDay = DAYS_OF_WEEK[(dayIdx - 1 + DAYS_OF_WEEK.length) % DAYS_OF_WEEK.length].label;
+  const nextDay = DAYS_OF_WEEK[(dayIdx + 1) % DAYS_OF_WEEK.length].label;
 
   // Dot indicator: does a given day have any goals?
   const hasDayGoals = (label: string) => week.goals.some((g) => g.daySelected === label);

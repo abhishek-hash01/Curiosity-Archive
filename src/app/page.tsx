@@ -78,7 +78,9 @@ export default function ThisWeekPage() {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex flex-col gap-1">
             <p className="text-xs font-mono text-muted-foreground">{greeting} —</p>
-            <h1 className="text-2xl font-semibold tracking-tight">This Week</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {isSunday ? 'Next Week' : 'This Week'}
+            </h1>
             <p className="text-sm text-muted-foreground font-mono">{weekRange}</p>
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0 mt-1">
@@ -91,7 +93,7 @@ export default function ThisWeekPage() {
               onChange={(e) => setTitleInput(e.target.value)}
               onBlur={handleTitleBlur}
               onKeyDown={(e) => { if (e.key === 'Enter') titleRef.current?.blur(); }}
-              placeholder="Name this week…"
+              placeholder={isSunday ? 'Name next week…' : 'Name this week…'}
               className="text-xs font-mono text-right bg-transparent border-b border-transparent hover:border-border focus:border-primary/50 focus:outline-none transition-colors text-primary placeholder:text-muted-foreground/40 w-44"
             />
           </div>

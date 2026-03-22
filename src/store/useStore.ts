@@ -15,6 +15,7 @@ interface StoreState extends AppState {
   importData: (data: AppState) => void;
   initializeWeek: (weekId: string, startDate: string) => void;
   mergeWeekInto: (sourceWeekId: string, targetWeekId: string) => void;
+  removeLearning: (weekId: string, learningId: string) => void;
 }
 
 export const useStore = create<StoreState>()(
@@ -198,6 +199,21 @@ export const useStore = create<StoreState>()(
                 ...target,
                 goals: [...target.goals, ...newGoals],
                 learnings: [...target.learnings, ...newLearnings],
+              },
+            },
+          };
+        }),
+
+      removeLearning: (weekId, learningId) =>
+        set((state) => {
+          const week = state.weeks[weekId];
+          if (!week) return state;
+          return {
+            weeks: {
+              ...state.weeks,
+              [weekId]: {
+                ...week,
+                learnings: week.learnings.filter((l) => l.id !== learningId),
               },
             },
           };

@@ -4,24 +4,42 @@ import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { extractTags } from '@/utils/helpers';
 import { format } from 'date-fns';
-import { Trash2, X } from 'lucide-react';
+import { Trash2, X, Sparkles } from 'lucide-react';
+
+const MILESTONES = [10, 25, 50, 100, 200, 500];
+
+function checkMilestone(before: number, after: number): number | null {
+  for (const m of MILESTONES) {
+    if (before < m && after >= m) return m;
+  }
+  return null;
+}
 
 export function LearningStream({ weekId }: { weekId: string }) {
   const [text, setText] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [milestone, setMilestone] = useState<number | null>(null);
 
+  const weeks = useStore((state) => state.weeks);
   const week = useStore((state) => state.weeks[weekId]);
   const addLearning = useStore((state) => state.addLearning);
   const removeLearning = useStore((state) => state.removeLearning);
 
   if (!week) return null;
 
+  const lifetimeCount = Object.values(weeks).reduce((sum, w) => sum + w.learnings.length, 0);
+
   const handleSave = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
     const tags = extractTags(trimmed);
+    const hit = checkMilestone(lifetimeCount, lifetimeCount + 1);
     addLearning(weekId, trimmed, tags);
     setText('');
+    if (hit) {
+      setMilestone(hit);
+      setTimeout(() => setMilestone(null), 3500);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -95,6 +113,16 @@ export function LearningStream({ weekId }: { weekId: string }) {
           </div>
         </div>
       </div>
+
+      {/* Milestone toast */}
+      {milestone && (
+        <div className="mx-6 mt-3 flex items-center gap-2.5 bg-purpleSoft border border-primary/25 rounded-lg px-4 py-2.5 animate-in fade-in slide-in-from-top-2 duration-300">
+          <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+          <p className="text-xs text-primary font-medium">
+            Insight #{milestone} — milestone unlocked! 🎉
+          </p>
+        </div>
+      )}
 
       {/* Tag filter bar */}
       {allTags.length > 0 && (

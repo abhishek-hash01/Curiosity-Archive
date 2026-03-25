@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
-import { CheckCircle2, Circle, Trash2, CalendarDays, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle2, Circle, Trash2, CalendarDays, Sparkles, ChevronLeft, ChevronRight, ArrowRightToLine, ArchiveRestore } from 'lucide-react';
 
 const DAYS_OF_WEEK = [
   { label: 'Monday', short: 'M' },
@@ -28,6 +28,7 @@ export function GoalsList({ weekId }: { weekId: string }) {
   const addGoal = useStore((state) => state.addGoal);
   const toggleGoal = useStore((state) => state.toggleGoal);
   const removeGoal = useStore((state) => state.removeGoal);
+  const setGoalDay = useStore((state) => state.setGoalDay);
 
   if (!week) return null;
 
@@ -71,7 +72,23 @@ export function GoalsList({ weekId }: { weekId: string }) {
     });
   };
 
-  const renderGoals = (goals: typeof week.goals, isToday: boolean) =>
+  const postponeToNextDay = (goalId: string, currentDayLabel: string) => {
+    const idx = DAYS_OF_WEEK.findIndex(d => d.label === currentDayLabel);
+    if (idx === -1) return;
+    // If it's Saturday (last day), we probably just want to move it to Anytime instead of wrapping to Monday
+    if (idx === DAYS_OF_WEEK.length - 1) {
+      setGoalDay(weekId, goalId, undefined);
+    } else {
+      const tomorrow = DAYS_OF_WEEK[idx + 1].label;
+      setGoalDay(weekId, goalId, tomorrow);
+    }
+  };
+
+  const moveToAnytime = (goalId: string) => {
+    setGoalDay(weekId, goalId, undefined);
+  };
+
+  const renderGoals = (goals: typeof week.goals, isToday: boolean, isAnytimeList = false) =>
     goals.map((goal) => (
       <div
         key={goal.id}
@@ -88,13 +105,35 @@ export function GoalsList({ weekId }: { weekId: string }) {
         <span className={`text-sm flex-1 ${goal.completed ? 'text-muted-foreground line-through' : isToday ? 'text-foreground font-medium' : 'text-foreground'}`}>
           {renderTextWithTags(goal.text)}
         </span>
-        <button
-          onClick={() => removeGoal(weekId, goal.id)}
-          className="mt-0.5 text-muted-foreground/30 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all focus:outline-none"
-          title="Delete goal"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        
+        {/* Actions fade in on hover */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+          {!goal.completed && !isAnytimeList && goal.daySelected && (
+            <>
+              <button
+                onClick={() => postponeToNextDay(goal.id, goal.daySelected!)}
+                className="p-1 mr-0.5 text-muted-foreground/40 hover:text-primary hover:bg-primary/10 rounded transition-colors focus:outline-none"
+                title={goal.daySelected === 'Saturday' ? 'Move to Anytime (end of week)' : 'Postpone to tomorrow'}
+              >
+                <ArrowRightToLine className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => moveToAnytime(goal.id)}
+                className="p-1 mr-0.5 text-muted-foreground/40 hover:text-primary hover:bg-primary/10 rounded transition-colors focus:outline-none"
+                title="Move to Anytime (Backlog)"
+              >
+                <ArchiveRestore className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => removeGoal(weekId, goal.id)}
+            className="p-1 text-muted-foreground/30 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors focus:outline-none"
+            title="Delete goal"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
     ));
 
@@ -121,7 +160,7 @@ export function GoalsList({ weekId }: { weekId: string }) {
 
       {/* All-done celebration */}
       {allDone && (
-        <div className="flex items-center justify-center gap-2 py-2 px-4 bg-primary/5 border border-primary/20 rounded-lg text-sm font-medium text-primary animate-in fade-in slide-in-from-bottom-2 duration-500">
+         <div className="flex items-center justify-center gap-2 py-2 px-4 bg-primary/5 border border-primary/20 rounded-lg text-sm font-medium text-primary animate-in fade-in slide-in-from-bottom-2 duration-500">
           <Sparkles className="w-4 h-4" />
           All done — great week!
         </div>
@@ -210,7 +249,7 @@ export function GoalsList({ weekId }: { weekId: string }) {
       {/* Goals for selected day */}
       <div className="flex flex-col gap-1">
         {dayGoals.length > 0
-          ? renderGoals(dayGoals, viewDay === todayLabel)
+          ? renderGoals(dayGoals, viewDay === todayLabel, false)
           : (
             <div className="py-3 text-center text-xs text-muted-foreground italic border border-dashed border-border/40 rounded-lg">
               No goals for {viewDay} yet.
@@ -224,7 +263,7 @@ export function GoalsList({ weekId }: { weekId: string }) {
           <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider pl-2">
             Anytime
           </h3>
-          {renderGoals(anytimeGoals, false)}
+          {renderGoals(anytimeGoals, false, true)}
         </div>
       )}
     </div>

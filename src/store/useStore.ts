@@ -8,6 +8,7 @@ interface StoreState extends AppState {
   addGoal: (weekId: string, text: string, daySelected?: string) => void;
   toggleGoal: (weekId: string, goalId: string) => void;
   removeGoal: (weekId: string, goalId: string) => void;
+  setGoalDay: (weekId: string, goalId: string, daySelected?: string) => void;
   addLearning: (weekId: string, text: string, tags: Tag[], relatesTo?: string[]) => void;
   updateWeekReflection: (weekId: string, reflection: string) => void;
   addProject: (name: string, tags: Tag[]) => void;
@@ -104,6 +105,23 @@ export const useStore = create<StoreState>()(
               [weekId]: {
                 ...week,
                 goals: week.goals.filter((g) => g.id !== goalId),
+              },
+            },
+          };
+        }),
+
+      setGoalDay: (weekId, goalId, daySelected) =>
+        set((state) => {
+          const week = state.weeks[weekId];
+          if (!week) return state;
+          return {
+            weeks: {
+              ...state.weeks,
+              [weekId]: {
+                ...week,
+                goals: week.goals.map((g) =>
+                  g.id === goalId ? { ...g, daySelected } : g
+                ),
               },
             },
           };

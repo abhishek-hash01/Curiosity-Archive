@@ -31,13 +31,35 @@ export const useStore = create<StoreState>()(
       initializeWeek: (weekId, startDate) =>
         set((state) => {
           if (state.weeks[weekId]) return state; // Already exists
+
+          // Find the most recent previous week to carry over backlog tasks
+          const pastWeekIds = Object.keys(state.weeks)
+            .filter(id => id < weekId)
+            .sort();
+          
+          let carriedOverGoals: Goal[] = [];
+          
+          if (pastWeekIds.length > 0) {
+            const mostRecentPastId = pastWeekIds[pastWeekIds.length - 1];
+            const pastWeek = state.weeks[mostRecentPastId];
+            
+            // Carry over incomplete "Anytime" goals
+            carriedOverGoals = pastWeek.goals
+              .filter(g => !g.completed && (!g.daySelected || g.daySelected === 'Sunday'))
+              .map(g => ({
+                ...g,
+                id: uuidv4(), // Give it a new ID for the new week
+                createdAt: Date.now(),
+              }));
+          }
+
           return {
             weeks: {
               ...state.weeks,
               [weekId]: {
                 id: weekId,
                 startDate,
-                goals: [],
+                goals: carriedOverGoals,
                 learnings: [],
               },
             },

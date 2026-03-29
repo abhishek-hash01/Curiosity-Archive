@@ -6,7 +6,20 @@ import { getCurrentWeekId, getCurrentWeekStartDate, getRealCurrentWeekId, getRea
 import { GoalsList } from '@/components/GoalsList';
 import { LearningStream } from '@/components/LearningStream';
 import { WeeklyReflection } from '@/components/WeeklyReflection';
-import { format, parseISO, addDays } from 'date-fns';
+import { format, parseISO, addDays, subWeeks, startOfWeek } from 'date-fns';
+
+function getStreak(weeks: Record<string, { startDate: string; goals: any[]; learnings: any[] }>): number {
+  let streak = 0;
+  let checkDate = startOfWeek(new Date(), { weekStartsOn: 1 });
+  while (true) {
+    const id = `${checkDate.getFullYear()}-W${String(Math.ceil((((checkDate.getTime() - new Date(checkDate.getFullYear(), 0, 1).getTime()) / 86400000) + new Date(checkDate.getFullYear(), 0, 1).getDay() + 1) / 7)).padStart(2, '0')}`;
+    const found = Object.values(weeks).find(w => w.startDate.startsWith(checkDate.toISOString().slice(0, 10)));
+    if (!found || (found.goals.length === 0 && found.learnings.length === 0)) break;
+    streak++;
+    checkDate = subWeeks(checkDate, 1);
+  }
+  return streak;
+}
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -42,6 +55,8 @@ export default function ThisWeekPage() {
   const initializeWeek = useStore((state) => state.initializeWeek);
   const updateWeekTitle = useStore((state) => state.updateWeekTitle);
   const week = useStore((state) => weekId ? state.weeks[weekId] : null);
+  const allWeeks = useStore((state) => state.weeks);
+  const streak = getStreak(allWeeks);
 
   useEffect(() => {
     const currentId = getCurrentWeekId();
@@ -90,7 +105,14 @@ export default function ThisWeekPage() {
             <p className="text-sm text-muted-foreground font-mono">{weekRange}</p>
           </div>
           <div className="flex flex-col items-end gap-1.5 shrink-0 mt-1">
-            <span className="text-sm font-medium text-primary font-mono">{daysLeft}</span>
+            <div className="flex items-center gap-3">
+              {streak > 0 && (
+                <span className="text-[11px] font-mono text-muted-foreground border border-border/60 rounded-md px-2 py-0.5">
+                  {streak}w active
+                </span>
+              )}
+              <span className="text-sm font-medium text-primary font-mono">{daysLeft}</span>
+            </div>
             {/* Editable week title / theme */}
             <input
               ref={titleRef}

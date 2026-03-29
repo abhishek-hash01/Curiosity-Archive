@@ -1,340 +1,393 @@
 'use client';
 
-import { useMemo, useCallback, useEffect } from 'react';
+import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import {
   ReactFlow,
   useNodesState,
   useEdgesState,
-  addEdge,
-  Connection,
   Edge,
   Background,
   Controls,
+  ControlButton,
   Node,
   NodeProps,
   Handle,
   Position,
+  useReactFlow,
+  ReactFlowProvider,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { AppState } from '@/types';
+import { AppState, Goal } from '@/types';
+import * as d3 from 'd3-force';
 import { format, parseISO } from 'date-fns';
 
-// ── Goals Ring ─────────────────────────────────────────────────────────────
-function GoalsRing({ total, completed }: { total: number; completed: number }) {
-  const R = 9;
-  const CIRC = 2 * Math.PI * R;
-  const dash = total > 0 ? (completed / total) * CIRC : 0;
-  return (
-    <svg
-      width="24"
-      height="24"
-      style={{ position: 'absolute', top: 8, right: 8, flexShrink: 0 }}
-    >
-      <circle cx="12" cy="12" r={R} fill="none" stroke="var(--border)" strokeWidth="2.5" />
-      <circle
-        cx="12" cy="12" r={R}
-        fill="none"
-        stroke="var(--primary)"
-        strokeWidth="2.5"
-        strokeDasharray={`${dash} ${CIRC}`}
-        strokeLinecap="round"
-        transform="rotate(-90 12 12)"
-        style={{ transition: 'stroke-dasharray 0.5s ease' }}
-      />
-    </svg>
-  );
-}
+// ── Custom Nodes ───────────────────────────────────────────────────────────
 
-// ── Week Node ──────────────────────────────────────────────────────────────
 function WeekNode({ data }: NodeProps) {
-  const {
-    label, insightCount, topTags, intensity, isGhost,
-    goalsTotal, goalsCompleted, highlighted, searchActive,
-  } = data as {
-    label: string; insightCount: number; topTags: string[];
-    intensity: number; isGhost: boolean;
-    goalsTotal: number; goalsCompleted: number;
-    highlighted: boolean; searchActive: boolean;
-  };
-
-  const borderColor =
-    isGhost ? 'var(--border)'
-    : intensity > 0.7 ? 'var(--primary)'
-    : intensity > 0.4 ? 'var(--purple-secondary)'
-    : 'var(--border)';
-
-  const borderStyle = isGhost ? '1.5px dashed var(--border)' : `${intensity > 0.6 ? '2px' : '1px'} solid ${borderColor}`;
-  const bg = isGhost ? 'transparent' : intensity > 0.5 ? '#f5f0fb' : 'var(--background)';
-  const dimmed = searchActive && !highlighted;
-
+  const { label } = data as { label: string };
   return (
     <div style={{
-      background: bg,
-      border: borderStyle,
-      borderRadius: '12px',
-      padding: `12px ${goalsTotal > 0 ? '36px' : '14px'} 12px 14px`,
-      width: 168,
+      background: 'var(--background)',
+      border: '2px solid var(--border)',
+      borderRadius: '8px',
+      padding: '8px 12px',
+      fontSize: '12px',
+      fontWeight: 'bold',
       fontFamily: 'var(--font-sans)',
-      boxShadow: isGhost ? 'none' : 'inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 8px rgba(0,0,0,0.07)',
-      opacity: dimmed ? 0.25 : isGhost ? 0.5 : 1,
-      transition: 'opacity 0.25s ease',
-      position: 'relative',
-      cursor: 'pointer',
+      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
     }}>
-      <Handle type="target" position={Position.Left} style={{ opacity: 0 }} />
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-
-      {goalsTotal > 0 && <GoalsRing total={goalsTotal} completed={goalsCompleted} />}
-
-      <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--foreground)', marginBottom: '3px', letterSpacing: '-0.01em' }}>
-        {label}
-      </div>
-      <div style={{ fontSize: '10px', color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)', marginBottom: topTags.length > 0 ? '7px' : 0 }}>
-        {insightCount} insight{insightCount !== 1 ? 's' : ''}
-      </div>
-      {topTags.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
-          {topTags.map(tag => (
-            <span key={tag} style={{ fontSize: '9px', background: 'var(--purple-soft)', color: 'var(--primary)', fontFamily: 'var(--font-mono)', padding: '1px 5px', borderRadius: '4px', lineHeight: '1.6' }}>
-              #{tag}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
+      {label}
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </div>
   );
 }
 
-// ── Tag Cluster Node ───────────────────────────────────────────────────────
 function TagNode({ data }: NodeProps) {
-  const { tag, weekCount, highlighted, searchActive } = data as {
-    tag: string; weekCount: number; highlighted: boolean; searchActive: boolean;
-  };
-  const dimmed = searchActive && !highlighted;
-  const active = searchActive && highlighted;
-
+  const { tag, weekCount } = data as { tag: string; weekCount: number };
   return (
     <div style={{
-      background: active ? 'var(--primary)' : 'var(--purple-soft)',
-      color: active ? 'var(--primary-foreground)' : 'var(--primary)',
-      border: `1px solid ${active ? 'var(--primary)' : 'var(--purple-secondary)'}`,
+      background: 'var(--purple-soft)',
+      color: 'var(--primary)',
+      border: '1px solid var(--purple-secondary)',
       borderRadius: '20px',
       padding: '4px 10px',
       fontFamily: 'var(--font-mono)',
       fontSize: '10px',
       fontWeight: 600,
-      whiteSpace: 'nowrap' as const,
-      boxShadow: active ? '0 0 0 3px rgba(107,76,154,0.2)' : 'none',
-      opacity: dimmed ? 0.2 : 1,
-      transition: 'opacity 0.25s ease, background 0.25s ease',
     }}>
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      #{tag}
-      <span style={{ opacity: 0.55, fontSize: '9px', marginLeft: '4px' }}>×{weekCount}</span>
+      #{tag} <span style={{ opacity: 0.6 }}>×{weekCount}</span>
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </div>
   );
 }
 
-// ── Project Node ───────────────────────────────────────────────────────────
 function ProjectNode({ data }: NodeProps) {
-  const { label, tags } = data as { label: string; tags: string[] };
+  const { label } = data as { label: string };
   return (
     <div style={{
-      background: 'var(--primary)', color: 'var(--primary-foreground)',
-      border: '1px solid var(--purple-secondary)', borderRadius: '16px',
-      padding: '14px 20px', width: 200,
-      fontFamily: 'var(--font-sans)', textAlign: 'center',
-      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25), 0 4px 14px rgba(107,76,154,0.35)',
+      background: 'var(--primary)',
+      color: 'var(--primary-foreground)',
+      border: '1px solid var(--purple-secondary)',
+      borderRadius: '16px',
+      padding: '10px 16px',
+      fontFamily: 'var(--font-sans)',
+      fontWeight: 'bold',
     }}>
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-      <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: tags.length > 0 ? '8px' : 0, letterSpacing: '-0.01em' }}>{label}</div>
-      {tags.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', justifyContent: 'center' }}>
-          {tags.map(tag => (
-            <span key={tag} style={{ fontSize: '9px', background: 'rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.9)', fontFamily: 'var(--font-mono)', padding: '2px 6px', borderRadius: '4px' }}>
-              #{tag}
-            </span>
-          ))}
-        </div>
-      )}
+      {label}
     </div>
   );
 }
 
-const nodeTypes = { weekNode: WeekNode, tagNode: TagNode, projectNode: ProjectNode };
+// Readable pill nodes with visible inline text
+function GoalNode({ data }: NodeProps) {
+  const { label, completed } = data as any;
+  const truncated = label?.length > 32 ? label.slice(0, 30) + '…' : label;
+  return (
+    <div
+      title={label}
+      style={{
+        background: completed ? 'var(--primary)' : 'var(--background)',
+        color: completed ? 'var(--primary-foreground)' : 'var(--foreground)',
+        border: completed ? '1.5px solid var(--primary)' : '1.5px solid var(--border)',
+        borderRadius: '8px',
+        padding: '5px 10px',
+        fontSize: '11px',
+        fontFamily: 'var(--font-sans)',
+        maxWidth: '160px',
+        whiteSpace: 'nowrap' as const,
+        overflow: 'hidden',
+        textDecoration: completed ? 'line-through' : 'none',
+        opacity: completed ? 0.75 : 1,
+        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+        cursor: label?.length > 32 ? 'pointer' : 'default',
+      }}
+    >
+      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+      {truncated}
+    </div>
+  );
+}
 
-// ── Main ───────────────────────────────────────────────────────────────────
-export default function InsightsGraph({
-  weeks, projects, searchTag, onWeekSelect,
-}: {
-  weeks: AppState['weeks'];
-  projects: AppState['projects'];
-  searchTag: string;
-  onWeekSelect: (weekId: string | null) => void;
-}) {
+function InsightNode({ data }: NodeProps) {
+  const { label } = data as any;
+  const truncated = label?.length > 38 ? label.slice(0, 36) + '…' : label;
+  return (
+    <div
+      title={label}
+      style={{
+        background: 'rgba(139,92,246,0.10)',
+        color: '#6d28d9',
+        border: '1.5px solid rgba(139,92,246,0.4)',
+        borderRadius: '8px',
+        padding: '5px 10px',
+        fontSize: '11px',
+        fontFamily: 'var(--font-sans)',
+        maxWidth: '200px',
+        whiteSpace: 'nowrap' as const,
+        overflow: 'hidden',
+        fontStyle: 'italic',
+        boxShadow: '0 1px 4px rgba(139,92,246,0.12)',
+        cursor: label?.length > 38 ? 'pointer' : 'default',
+      }}
+    >
+      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+      {truncated}
+    </div>
+  );
+}
+
+const nodeTypes = { weekNode: WeekNode, tagNode: TagNode, projectNode: ProjectNode, goalNode: GoalNode, insightNode: InsightNode };
+
+// ── Force Directed Logic ───────────────────────────────────────────────────
+
+function ForceGraph({ weeks, projects, searchTag, onWeekSelect, toggleFullscreen, isFullscreen }: { weeks: AppState['weeks']; projects: AppState['projects']; searchTag: string; onWeekSelect: (id: string | null) => void; toggleFullscreen: () => void; isFullscreen: boolean }) {
+  const { fitView } = useReactFlow();
+  const [selectedNode, setSelectedNode] = useState<{ type: string; label: string; completed?: boolean } | null>(null);
+  
   const { initialNodes, initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-
-    const weekArray = Object.values(weeks).sort(
-      (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-    );
-    const projectArray = Object.values(projects);
-    const maxInsights = Math.max(...weekArray.map(w => w.learnings.length), 1);
-
-    const WEEK_X = 220;
-    const PROJ_X = 260;
-    const TAG_X = 130;
-
-    const totalWeekW = Math.max(0, (weekArray.length - 1) * WEEK_X);
-    const totalProjW = Math.max(0, (projectArray.length - 1) * PROJ_X);
-
-    // Top 8 tags globally, keyed by tag → set of weekIds
+    
+    const weekArray = Object.values(weeks);
+    const projArray = Object.values(projects);
+    
+    // Tag frequency
     const tagMap = new Map<string, Set<string>>();
-    weekArray.forEach(week => {
-      const seen = new Set(week.learnings.flatMap(l => l.tags));
-      seen.forEach(tag => {
-        if (!tagMap.has(tag)) tagMap.set(tag, new Set());
-        tagMap.get(tag)!.add(week.id);
-      });
+    weekArray.forEach(w => w.learnings.forEach(l => l.tags.forEach(t => {
+      if (!tagMap.has(t)) tagMap.set(t, new Set());
+      tagMap.get(t)!.add(w.id);
+    })));
+    const topTags = Array.from(tagMap.entries()).sort((a,b) => b[1].size - a[1].size).slice(0, 10);
+
+    // 1. Tags
+    topTags.forEach(([tag, wSet]) => {
+      nodes.push({ id: `tag:${tag}`, type: 'tagNode', data: { tag, weekCount: wSet.size }, position: { x: 0, y: 0 } });
     });
-    const topTags = Array.from(tagMap.entries())
-      .sort((a, b) => b[1].size - a[1].size)
-      .slice(0, 8);
-    const totalTagW = Math.max(0, (topTags.length - 1) * TAG_X);
 
-    const hasProjects = projectArray.length > 0;
-    const hasTags = topTags.length > 0;
-    const projY = 0;
-    const tagY = hasProjects ? 180 : 0;
-    const weekY = hasTags ? tagY + 170 : hasProjects ? 200 : 80;
-
-    // Project nodes
-    projectArray.forEach((proj, i) => {
-      nodes.push({
-        id: `proj:${proj.id}`, type: 'projectNode',
-        position: { x: i * PROJ_X - totalProjW / 2, y: projY },
-        data: { label: proj.name, tags: proj.tags },
+    // 2. Projects
+    projArray.forEach(proj => {
+      nodes.push({ id: `proj:${proj.id}`, type: 'projectNode', data: { label: proj.name }, position: { x: 0, y: 0 } });
+      const pTags = new Set(proj.tags);
+      // Link proj to Tags
+      topTags.forEach(([tag]) => {
+      if (pTags.has(tag)) edges.push({ id: `e:proj-tag:${proj.id}-${tag}`, source: `proj:${proj.id}`, target: `tag:${tag}`, style: { opacity: 0.55, stroke: 'var(--primary)', strokeWidth: 2 } });
       });
     });
 
-    // Tag cluster nodes
-    topTags.forEach(([tag, weekSet], i) => {
-      nodes.push({
-        id: `tag:${tag}`, type: 'tagNode',
-        position: { x: i * TAG_X - totalTagW / 2, y: tagY },
-        data: { tag, weekCount: weekSet.size, highlighted: false, searchActive: false },
-      });
-    });
-
-    // Week nodes + edges
+    // 3. Weeks + Goals + Insights
     weekArray.forEach((week, i) => {
       const parsedDate = parseISO(week.startDate);
       const label = `Week of ${format(parsedDate, 'MMM d')}`;
-      const x = i * WEEK_X - totalWeekW / 2;
-      const intensity = week.learnings.length / maxInsights;
-      const isGhost = week.learnings.length === 0;
+      nodes.push({ id: `week:${week.id}`, type: 'weekNode', data: { weekId: week.id, label }, position: { x: 0, y: 0 } });
 
-      const tagFreq = new Map<string, number>();
-      week.learnings.forEach(l => l.tags.forEach(t => tagFreq.set(t, (tagFreq.get(t) || 0) + 1)));
-      const weekTopTags = Array.from(tagFreq.entries())
-        .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([t]) => t);
-      const allTags = Array.from(new Set(week.learnings.flatMap(l => l.tags)));
-
-      nodes.push({
-        id: `week:${week.id}`, type: 'weekNode',
-        position: { x, y: weekY },
-        data: {
-          weekId: week.id, label, insightCount: week.learnings.length,
-          topTags: weekTopTags, allTags,
-          intensity, isGhost,
-          goalsTotal: week.goals.length,
-          goalsCompleted: week.goals.filter(g => g.completed).length,
-          highlighted: false, searchActive: false,
-        },
-      });
-
-      // Dashed chronological chain
+      // Link week to previous week
       if (i > 0) {
-        const prev = weekArray[i - 1];
-        edges.push({
-          id: `edge:chain:${prev.id}-${week.id}`,
-          source: `week:${prev.id}`, target: `week:${week.id}`,
-          type: 'straight',
-          style: { stroke: 'var(--border)', opacity: 0.6, strokeWidth: 1.5, strokeDasharray: '5 5' },
-        });
+        edges.push({ id: `e:chain:${weekArray[i-1].id}-${week.id}`, source: `week:${weekArray[i-1].id}`, target: `week:${week.id}`, style: { strokeWidth: 2.5, strokeDasharray: '6,4', opacity: 0.55, stroke: '#94a3b8' } });
       }
 
-      // Tag node → week edges
-      topTags.forEach(([tag, weekSet]) => {
-        if (weekSet.has(week.id)) {
-          edges.push({
-            id: `edge:tag-week:${tag}-${week.id}`,
-            source: `tag:${tag}`, target: `week:${week.id}`,
-            type: 'smoothstep',
-            animated: weekSet.size > 1,
-            style: { stroke: 'var(--purple-secondary)', opacity: 0.35, strokeWidth: 1.5 },
-          });
-        }
+      // Link week to Tags
+      const wTags = new Set(week.learnings.flatMap(l=>l.tags));
+      topTags.forEach(([tag]) => {
+        if (wTags.has(tag)) edges.push({ id: `e:week-tag:${week.id}-${tag}`, source: `week:${week.id}`, target: `tag:${tag}`, style: { opacity: 0.55, stroke: 'var(--primary)', strokeWidth: 1.5 } });
       });
-    });
 
-    // Project → week edges
-    projectArray.forEach(proj => {
-      const projTags = new Set(proj.tags);
-      weekArray.forEach(week => {
-        const weekTags = new Set(week.learnings.flatMap(l => l.tags));
-        let shared = false;
-        for (const pt of projTags) { if (weekTags.has(pt)) { shared = true; break; } }
-        if (shared) {
-          edges.push({
-            id: `edge:proj-week:${proj.id}-${week.id}`,
-            source: `proj:${proj.id}`, target: `week:${week.id}`,
-            type: 'smoothstep',
-            style: { stroke: 'var(--primary)', opacity: 0.55, strokeWidth: 2 },
-          });
-        }
+      // Goals
+      const flattenGoals = (goals: Goal[], branchLabel?: string) => {
+        goals.forEach(g => {
+          nodes.push({ id: `goal:${g.id}`, type: 'goalNode', data: { label: branchLabel ? `[${branchLabel}] ${g.text}` : g.text, completed: g.completed }, position: { x: 0, y: 0 } });
+          edges.push({ id: `e:week-goal:${week.id}-${g.id}`, source: `week:${week.id}`, target: `goal:${g.id}`, style: { opacity: 0.5, stroke: g.completed ? 'var(--primary)' : '#9ca3af', strokeWidth: 1.5 } });
+          if (g.type === 'conditional' && g.branches) {
+             g.branches.forEach(b => flattenGoals(b.goals, b.label));
+          }
+        });
+      };
+      flattenGoals(week.goals);
+
+      // Insights
+      week.learnings.forEach(l => {
+        nodes.push({ id: `insight:${l.id}`, type: 'insightNode', data: { label: l.text }, position: { x: 0, y: 0 } });
+        edges.push({ id: `e:week-insight:${week.id}-${l.id}`, source: `week:${week.id}`, target: `insight:${l.id}`, style: { opacity: 0.55, stroke: '#8b5cf6', strokeWidth: 1.5 } });
       });
     });
 
     return { initialNodes: nodes, initialEdges: edges };
   }, [weeks, projects]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes] = useNodesState(initialNodes);
+  const [edges, setEdges] = useEdgesState(initialEdges);
 
-  const onConnect = useCallback(
-    (params: Edge | Connection) => setEdges(eds => addEdge(params, eds)),
-    [setEdges]
-  );
-
-  // Sync highlight state when searchTag changes
+  // Physics Simulation
   useEffect(() => {
-    const st = searchTag.trim().toLowerCase();
-    setNodes(nds => nds.map(node => {
-      if (node.type === 'weekNode') {
-        const allTags = (node.data.allTags as string[]) ?? [];
-        const highlighted = st === '' || allTags.some(t => t.includes(st));
-        return { ...node, data: { ...node.data, highlighted, searchActive: st !== '' } };
-      }
-      if (node.type === 'tagNode') {
-        const tag = node.data.tag as string;
-        const highlighted = st === '' || tag.includes(st);
-        return { ...node, data: { ...node.data, highlighted, searchActive: st !== '' } };
-      }
-      return node;
+    // Spread nodes randomly to avoid initial stack at origin
+    const simNodes = initialNodes.map(n => ({
+      ...n,
+      x: (Math.random() - 0.5) * 2400,
+      y: (Math.random() - 0.5) * 1600,
     }));
-  }, [searchTag, setNodes]);
+    const simLinks = initialEdges.map(e => ({ source: e.source, target: e.target }));
+
+    const simulation = d3.forceSimulation(simNodes as any)
+      .force('charge', d3.forceManyBody().strength((d: any) => {
+        if (d.type === 'projectNode') return -1400;
+        if (d.type === 'weekNode') return -1000;
+        if (d.type === 'tagNode') return -1000;
+        return -300;
+      }))
+      .force('link', d3.forceLink(simLinks).id((d: any) => d.id).distance((l: any) => {
+        const s = l.source as any;
+        const t = l.target as any;
+        if (s.type === 'weekNode' && t.type === 'weekNode') return 260;
+        if (s.type === 'weekNode' || t.type === 'weekNode') return 150;
+        return 90;
+      }))
+      .force('center', d3.forceCenter(0, 0))
+      .force('collide', d3.forceCollide().radius((d: any) => {
+        // Match half the actual rendered node width + padding
+        if (d.type === 'projectNode') return 110;
+        if (d.type === 'weekNode') return 100;
+        if (d.type === 'tagNode') return 65;
+        if (d.type === 'insightNode') return 110; // maxWidth 200px / 2 + buffer
+        if (d.type === 'goalNode') return 90;     // maxWidth 160px / 2 + buffer
+        return 70;
+      }).iterations(5))
+      .stop(); // Stop auto-ticking — we drive it manually
+
+    // ── Pre-run synchronously so nodes are never invisible on first paint ──
+    simulation.tick(300);
+    setNodes([...simNodes.map((n: any) => ({ ...n, position: { x: n.x, y: n.y } }))]);
+
+    // ── Short settling animation ──
+    let animationFrameId: number;
+    simulation.alpha(0.08).restart();
+
+    const tick = () => {
+      simulation.tick();
+      setNodes([...simNodes.map((n: any) => ({ ...n, position: { x: n.x, y: n.y } }))]);
+      if (simulation.alpha() > simulation.alphaMin()) {
+        animationFrameId = requestAnimationFrame(tick);
+      } else {
+        simulation.stop();
+        fitView({ duration: 600, padding: 0.2 });
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(animationFrameId); simulation.stop(); };
+  }, [initialNodes, initialEdges, setNodes, fitView]);
 
   const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    if (node.type === 'weekNode') onWeekSelect(node.data.weekId as string);
-  }, [onWeekSelect]);
+    if (node.type === 'goalNode' || node.type === 'insightNode') {
+      setSelectedNode({ type: node.type, label: node.data.label as string, completed: node.data.completed as boolean | undefined });
+    }
+  }, []);
 
-  if (nodes.length === 0) {
+  return (
+    <>
+      <ReactFlow
+        nodes={nodes} edges={edges}
+        nodeTypes={nodeTypes}
+        onNodeClick={handleNodeClick}
+        fitView
+        attributionPosition="bottom-left" colorMode="light"
+        proOptions={{ hideAttribution: true }}
+      >
+        <Background color="var(--border)" gap={24} size={1} />
+        <Controls showInteractive={false} showFitView={false} className="bg-background border-border fill-foreground">
+          <ControlButton
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          >
+            {isFullscreen ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/>
+                <path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 8V5a2 2 0 0 1 2-2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/>
+                <path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/>
+              </svg>
+            )}
+          </ControlButton>
+        </Controls>
+      </ReactFlow>
+
+      {/* Full-text popup */}
+      {selectedNode && (
+        <div
+          className="absolute inset-0 z-50 flex items-center justify-center"
+          style={{ backdropFilter: 'blur(2px)', background: 'rgba(0,0,0,0.15)' }}
+          onClick={() => setSelectedNode(null)}
+        >
+          <div
+            className="max-w-sm w-full mx-4 rounded-2xl shadow-2xl border border-border animate-in zoom-in-95 fade-in duration-200"
+            style={{
+              background: selectedNode.type === 'insightNode' ? 'rgba(245,242,255,0.98)' : 'var(--background)',
+              borderColor: selectedNode.type === 'insightNode' ? 'rgba(139,92,246,0.4)' : 'var(--border)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+                  style={{
+                    background: selectedNode.type === 'insightNode' ? 'rgba(139,92,246,0.15)' : selectedNode.completed ? 'var(--primary)' : 'var(--muted)',
+                    color: selectedNode.type === 'insightNode' ? '#6d28d9' : selectedNode.completed ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
+                  }}
+                >
+                  {selectedNode.type === 'insightNode' ? '✦ Insight' : selectedNode.completed ? '✓ Completed Goal' : '○ Goal'}
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedNode(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors text-lg leading-none mt-[-2px]"
+              >×</button>
+            </div>
+            <p
+              className="px-5 py-4 text-sm leading-relaxed"
+              style={{
+                color: selectedNode.type === 'insightNode' ? '#5b21b6' : 'var(--foreground)',
+                fontStyle: selectedNode.type === 'insightNode' ? 'italic' : 'normal',
+                textDecoration: selectedNode.completed ? 'line-through' : 'none',
+                opacity: selectedNode.completed ? 0.75 : 1,
+              }}
+            >
+              {selectedNode.label}
+            </p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function InsightsGraphWrapper(props: any) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+
+  if (Object.keys(props.weeks).length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-8 bg-muted/10">
         <p className="text-muted-foreground text-sm">Not enough data to map terrain. Log some insights first!</p>
@@ -343,18 +396,45 @@ export default function InsightsGraph({
   }
 
   return (
-    <div className="w-full h-full bg-muted/5">
-      <ReactFlow
-        nodes={nodes} edges={edges}
-        onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-        onConnect={onConnect} onNodeClick={handleNodeClick}
-        nodeTypes={nodeTypes}
-        fitView fitViewOptions={{ padding: 0.3 }}
-        attributionPosition="bottom-left" colorMode="light"
-      >
-        <Background color="var(--border)" gap={24} size={1} />
-        <Controls showInteractive={false} className="bg-background border-border fill-foreground" />
-      </ReactFlow>
+    <div ref={containerRef} className="w-full h-full bg-muted/5 relative overflow-hidden">
+      {/* Title overlay - top left */}
+      <div className="absolute top-4 left-4 z-10 p-3 bg-background/80 backdrop-blur-sm border border-border rounded-lg shadow-sm">
+        <h3 className="text-sm font-semibold tracking-tight">The Constellation</h3>
+        <p className="text-[10px] text-muted-foreground mt-0.5">Click any node to read full text</p>
+      </div>
+
+      {/* Legend - top right */}
+      <div className="absolute top-4 right-4 z-10 p-3.5 bg-background/90 backdrop-blur-sm border border-border rounded-xl shadow-md flex flex-col gap-2.5">
+        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Legend</p>
+        <div className="flex items-center gap-2">
+          <div style={{ width: 14, height: 14, borderRadius: 4, background: 'var(--primary)', border: '1.5px solid var(--primary)', flexShrink: 0 }} />
+          <span className="text-[11px] text-foreground/80">Completed goal</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div style={{ width: 14, height: 14, borderRadius: 4, background: 'var(--background)', border: '1.5px solid var(--border)', flexShrink: 0 }} />
+          <span className="text-[11px] text-foreground/80">Pending goal</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div style={{ width: 14, height: 14, borderRadius: 6, background: 'rgba(139,92,246,0.12)', border: '1.5px solid rgba(139,92,246,0.45)', flexShrink: 0 }} />
+          <span className="text-[11px]" style={{ color: '#6d28d9' }}>Insight</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div style={{ width: 14, height: 14, borderRadius: 14, background: 'var(--purple-soft)', border: '1px solid var(--purple-secondary)', flexShrink: 0 }} />
+          <span className="text-[11px] text-foreground/80">#tag cluster</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div style={{ width: 14, height: 14, borderRadius: 4, background: 'var(--primary)', border: '1.5px solid var(--primary)', flexShrink: 0, opacity: 0.9 }} />
+          <span className="text-[11px] text-foreground/80">Project anchor</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div style={{ width: 22, height: 12, borderRadius: 4, background: 'var(--background)', border: '2px solid var(--border)', flexShrink: 0 }} />
+          <span className="text-[11px] text-foreground/80">Week</span>
+        </div>
+      </div>
+
+      <ReactFlowProvider>
+        <ForceGraph {...props} toggleFullscreen={toggleFullscreen} isFullscreen={isFullscreen} />
+      </ReactFlowProvider>
     </div>
   );
 }

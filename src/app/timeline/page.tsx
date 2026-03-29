@@ -114,7 +114,7 @@ function WeekCard({
                 )}
               </h3>
               {week.weekTitle && (
-                <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
+                <span className="text-sm font-semibold text-primary bg-primary/15 px-3 py-1 rounded-full border border-primary/30 shadow-sm transition-all hover:bg-primary/20">
                   {week.weekTitle}
                 </span>
               )}

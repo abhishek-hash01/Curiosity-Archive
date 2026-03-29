@@ -1,5 +1,11 @@
 export type Tag = string;
 
+export interface Branch {
+  id: string;
+  label: string;
+  goals: Goal[];
+}
+
 export interface Goal {
   id: string;
   text: string;
@@ -7,6 +13,11 @@ export interface Goal {
   completedAt?: number;
   createdAt: number;
   daySelected?: string; // e.g. "Monday", "Tuesday"
+  
+  // Conditional planning features
+  type?: 'regular' | 'conditional';
+  branches?: Branch[];
+  selectedBranchId?: string;
 }
 
 export interface Project {
@@ -27,6 +38,7 @@ export interface Week {
   id: string; // e.g., "2023-W41"
   startDate: string; // ISO date string
   weekTitle?: string; // optional theme e.g. "Outreach Heavy"
+  dayTitles?: Record<string, string>; // e.g. { "Monday": "Deep Work Day" }
   goals: Goal[];
   learnings: LearningEntry[];
   weekReflection?: string; // legacy single-text

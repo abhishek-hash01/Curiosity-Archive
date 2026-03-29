@@ -6,6 +6,10 @@ import { AppState, Goal, LearningEntry, Project, Week, Tag } from '../types';
 interface StoreState extends AppState {
   // Actions
   addGoal: (weekId: string, text: string, daySelected?: string) => void;
+  addConditionalGoal: (weekId: string, text: string, daySelected: string | undefined, branches: { label: string; tasks: string[] }[]) => void;
+  selectBranch: (weekId: string, goalId: string, branchId: string) => void;
+  toggleNestedGoal: (weekId: string, goalId: string, branchId: string, nestedGoalId: string) => void;
+  updateDayTitle: (weekId: string, dayLabel: string, title: string) => void;
   toggleGoal: (weekId: string, goalId: string) => void;
   removeGoal: (weekId: string, goalId: string) => void;
   setGoalDay: (weekId: string, goalId: string, daySelected?: string) => void;
@@ -85,6 +89,119 @@ export const useStore = create<StoreState>()(
               [weekId]: {
                 ...week,
                 goals: [...week.goals, newGoal],
+              },
+            },
+          };
+        }),
+
+      addConditionalGoal: (weekId, text, daySelected, branches) =>
+        set((state) => {
+          const week = state.weeks[weekId];
+          if (!week) return state;
+
+          const newGoal: Goal = {
+            id: uuidv4(),
+            text,
+            completed: false,
+            createdAt: Date.now(),
+            daySelected,
+            type: 'conditional',
+            branches: branches.map(b => ({
+              id: uuidv4(),
+              label: b.label,
+              goals: b.tasks.filter(t => t.trim() !== '').map(t => ({
+                id: uuidv4(),
+                text: t,
+                completed: false,
+                createdAt: Date.now()
+              }))
+            }))
+          };
+
+          return {
+            weeks: {
+              ...state.weeks,
+              [weekId]: {
+                ...week,
+                goals: [...week.goals, newGoal],
+              },
+            },
+          };
+        }),
+
+      selectBranch: (weekId, goalId, branchId) =>
+        set((state) => {
+          const week = state.weeks[weekId];
+          if (!week) return state;
+          
+          return {
+            weeks: {
+              ...state.weeks,
+              [weekId]: {
+                ...week,
+                goals: week.goals.map((g) =>
+                  g.id === goalId ? { ...g, selectedBranchId: branchId } : g
+                ),
+              },
+            },
+          };
+        }),
+
+      toggleNestedGoal: (weekId, goalId, branchId, nestedGoalId) =>
+        set((state) => {
+          const week = state.weeks[weekId];
+          if (!week) return state;
+          
+          return {
+            weeks: {
+              ...state.weeks,
+              [weekId]: {
+                ...week,
+                goals: week.goals.map((g) => {
+                  if (g.id === goalId && g.branches) {
+                    return {
+                      ...g,
+                      branches: g.branches.map(b => {
+                        if (b.id === branchId) {
+                          return {
+                            ...b,
+                            goals: b.goals.map(ng => {
+                              if (ng.id === nestedGoalId) {
+                                const isNowCompleted = !ng.completed;
+                                return {
+                                  ...ng,
+                                  completed: isNowCompleted,
+                                  completedAt: isNowCompleted ? Date.now() : undefined
+                                };
+                              }
+                              return ng;
+                            })
+                          };
+                        }
+                        return b;
+                      })
+                    };
+                  }
+                  return g;
+                }),
+              },
+            },
+          };
+        }),
+
+      updateDayTitle: (weekId, dayLabel, title) =>
+        set((state) => {
+          const week = state.weeks[weekId];
+          if (!week) return state;
+          return {
+            weeks: {
+              ...state.weeks,
+              [weekId]: {
+                ...week,
+                dayTitles: {
+                  ...week.dayTitles,
+                  [dayLabel]: title,
+                },
               },
             },
           };

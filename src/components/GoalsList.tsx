@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
+import { Goal } from '@/types';
 import { CheckCircle2, Circle, Trash2, CalendarDays, Sparkles, ChevronLeft, ChevronRight, ArrowRightToLine, ArchiveRestore, GitBranch, X, Plus } from 'lucide-react';
 
 const DAYS_OF_WEEK = [
@@ -34,6 +35,7 @@ export function GoalsList({ weekId }: { weekId: string }) {
   const selectBranch = useStore((state) => state.selectBranch);
   const toggleNestedGoal = useStore((state) => state.toggleNestedGoal);
   const updateDayTitle = useStore((state) => state.updateDayTitle);
+  const addSubGoal = useStore((state) => state.addSubGoal);
 
   const [isConditionalMode, setIsConditionalMode] = useState(false);
   const [branch1Label, setBranch1Label] = useState('Yes');
@@ -43,6 +45,9 @@ export function GoalsList({ weekId }: { weekId: string }) {
 
   const [editingDay, setEditingDay] = useState<string | null>(null);
   const [dayTitleText, setDayTitleText] = useState('');
+
+  const [addingSubGoalTo, setAddingSubGoalTo] = useState<string | null>(null);
+  const [subGoalText, setSubGoalText] = useState('');
 
   if (!week) return null;
 
@@ -114,7 +119,19 @@ export function GoalsList({ weekId }: { weekId: string }) {
     setGoalDay(weekId, goalId, undefined);
   };
 
-  const renderGoals = (goals: typeof week.goals, isToday: boolean, isAnytimeList = false) =>
+  const handleSubGoalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, parentId: string) => {
+    if (e.key === 'Enter' && subGoalText.trim()) {
+      e.preventDefault();
+      addSubGoal(weekId, parentId, subGoalText.trim());
+      setSubGoalText('');
+      setAddingSubGoalTo(null);
+    } else if (e.key === 'Escape') {
+      setAddingSubGoalTo(null);
+      setSubGoalText('');
+    }
+  };
+
+  const renderGoals = (goals: Goal[], isToday: boolean, isAnytimeList = false, depth = 0) =>
     goals.map((goal) => {
       // ── Actions common to both conditional/regular ──
       const goalActions = (
@@ -138,6 +155,16 @@ export function GoalsList({ weekId }: { weekId: string }) {
             </>
           )}
           <button
+            onClick={() => {
+              setAddingSubGoalTo(goal.id);
+              setSubGoalText('');
+            }}
+            className="p-1 text-muted-foreground/30 hover:text-primary hover:bg-primary/10 rounded transition-colors focus:outline-none"
+            title="Add sub-task"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+          <button
             onClick={() => removeGoal(weekId, goal.id)}
             className="p-1 text-muted-foreground/30 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors focus:outline-none"
             title="Delete goal"
@@ -149,7 +176,7 @@ export function GoalsList({ weekId }: { weekId: string }) {
 
       if (goal.type === 'conditional') {
         return (
-          <div key={goal.id} className={`flex flex-col gap-2 p-3 mt-1 mb-1 rounded-xl border border-border/80 shadow-sm group transition-colors ${isToday ? 'bg-primary/5 hover:bg-primary/10' : 'bg-muted/30 hover:bg-muted/60'}`}>
+          <div key={goal.id} className={`flex flex-col gap-2 p-3 mt-1 mb-1 rounded-xl border border-border/80 shadow-sm group transition-colors ${isToday ? 'bg-primary/5 hover:bg-primary/10' : 'bg-muted/30 hover:bg-muted/60'}`} style={{ marginLeft: depth * 20 }}>
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-md bg-background border border-border shadow-sm p-1 shrink-0">
                 <GitBranch className="w-3.5 h-3.5 text-primary" />
@@ -161,7 +188,7 @@ export function GoalsList({ weekId }: { weekId: string }) {
             </div>
             
             <div className="flex items-center gap-2 pl-9">
-              {goal.branches?.map((b) => (
+              {goal.branches?.map((b: any) => (
                 <button
                   key={b.id}
                   onClick={() => selectBranch(weekId, goal.id, b.id)}
@@ -178,7 +205,7 @@ export function GoalsList({ weekId }: { weekId: string }) {
 
             {goal.selectedBranchId && (
               <div className="pl-6 ml-3 mt-2 flex flex-col gap-2 border-l-[1.5px] border-primary/20">
-                {goal.branches?.find(b => b.id === goal.selectedBranchId)?.goals.map((ng) => (
+                {goal.branches?.find((b: any) => b.id === goal.selectedBranchId)?.goals.map((ng: Goal) => (
                   <div key={ng.id} className="flex items-start gap-2.5 group/nested hover:bg-background/50 p-1.5 rounded-lg -ml-1.5 transition-colors">
                     <button onClick={() => toggleNestedGoal(weekId, goal.id, goal.selectedBranchId!, ng.id)} className="mt-[1px]">
                       {ng.completed ? <CheckCircle2 className="w-4 h-4 text-primary" /> : <Circle className="w-4 h-4 text-muted-foreground/50 hover:text-primary transition-colors" />}
@@ -196,22 +223,52 @@ export function GoalsList({ weekId }: { weekId: string }) {
 
       // ── Regular Goal ──
       return (
-        <div
-          key={goal.id}
-          className={`flex items-start gap-3 p-2 rounded-xl group transition-colors ${isToday ? 'hover:bg-primary/5' : 'hover:bg-muted/50'}`}
-        >
-          <button
-            onClick={() => toggleGoal(weekId, goal.id)}
-            className="mt-0.5 text-muted-foreground group-hover:text-foreground transition-colors focus:outline-none shrink-0"
+        <div key={goal.id} className="flex flex-col">
+          <div
+            className={`flex items-start gap-3 p-2 rounded-xl group transition-colors ${isToday ? 'hover:bg-primary/5' : 'hover:bg-muted/50'}`}
+            style={{ marginLeft: depth * 20 }}
           >
-            {goal.completed
-              ? <CheckCircle2 className="w-5 h-5 text-primary" />
-              : <Circle className={`w-5 h-5 ${isToday ? 'text-primary/50' : ''}`} />}
-          </button>
-          <span className={`text-sm flex-1 pt-[2px] ${goal.completed ? 'text-muted-foreground line-through' : isToday ? 'text-foreground font-medium' : 'text-foreground'}`}>
-            {renderTextWithTags(goal.text)}
-          </span>
-          {goalActions}
+            <button
+              onClick={() => toggleGoal(weekId, goal.id)}
+              className="mt-0.5 text-muted-foreground group-hover:text-foreground transition-colors focus:outline-none shrink-0"
+            >
+              {goal.completed
+                ? <CheckCircle2 className="w-5 h-5 text-primary" />
+                : <Circle className={`w-5 h-5 ${isToday ? 'text-primary/50' : ''}`} />}
+            </button>
+            <span className={`text-sm flex-1 pt-[2px] ${goal.completed ? 'text-muted-foreground line-through' : isToday ? 'text-foreground font-medium' : 'text-foreground'}`}>
+              {renderTextWithTags(goal.text)}
+            </span>
+            {goalActions}
+          </div>
+
+          {/* Inline Sub-goal Input */}
+          {addingSubGoalTo === goal.id && (
+            <div className="flex items-center gap-3 p-2 ml-8 -mt-1 group transition-colors" style={{ marginLeft: (depth + 1) * 20 }}>
+              <div className="w-5 flex justify-center shrink-0">
+                <Plus className="w-3.5 h-3.5 text-primary/40" />
+              </div>
+              <input
+                autoFocus
+                type="text"
+                placeholder="Sub-task name..."
+                value={subGoalText}
+                onChange={(e) => setSubGoalText(e.target.value)}
+                onKeyDown={(e) => handleSubGoalKeyDown(e, goal.id)}
+                onBlur={() => {
+                  if (!subGoalText.trim()) setAddingSubGoalTo(null);
+                }}
+                className="text-sm flex-1 bg-transparent border-b border-primary/20 focus:border-primary outline-none py-0.5 placeholder:text-muted-foreground/40 transition-colors"
+              />
+            </div>
+          )}
+
+          {/* Recursive sub-goals */}
+          {goal.subGoals && goal.subGoals.length > 0 && (
+            <div className="flex flex-col">
+              {renderGoals(goal.subGoals, isToday, isAnytimeList, depth + 1)}
+            </div>
+          )}
         </div>
       );
     });

@@ -18,6 +18,9 @@ export interface Goal {
   type?: 'regular' | 'conditional';
   branches?: Branch[];
   selectedBranchId?: string;
+
+  // Sub-tasks features
+  subGoals?: Goal[];
 }
 
 export interface Project {

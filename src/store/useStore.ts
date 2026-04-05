@@ -11,6 +11,7 @@ interface StoreState extends AppState {
   toggleNestedGoal: (weekId: string, goalId: string, branchId: string, nestedGoalId: string) => void;
   updateDayTitle: (weekId: string, dayLabel: string, title: string) => void;
   toggleGoal: (weekId: string, goalId: string) => void;
+  addSubGoal: (weekId: string, parentGoalId: string, text: string) => void;
   removeGoal: (weekId: string, goalId: string) => void;
   setGoalDay: (weekId: string, goalId: string, daySelected?: string) => void;
   addLearning: (weekId: string, text: string, tags: Tag[], relatesTo?: string[]) => void;
@@ -25,6 +26,73 @@ interface StoreState extends AppState {
   updateWeekTitle: (weekId: string, title: string) => void;
   updateReflectionSections: (weekId: string, sections: { wentWell: string; surprised: string; different: string }) => void;
 }
+
+// Helper for recursive completion toggle
+const toggleGoalRecursive = (goals: Goal[], targetId: string, newState?: boolean): { goals: Goal[], found: boolean } => {
+  let found = false;
+  const newGoals = goals.map(g => {
+    if (g.id === targetId) {
+      found = true;
+      const updatedCompleted = newState !== undefined ? newState : !g.completed;
+      // If we found the target, toggle it and all its children to the same state
+      return {
+        ...g,
+        completed: updatedCompleted,
+        completedAt: updatedCompleted ? (g.completedAt || Date.now()) : undefined,
+        subGoals: g.subGoals ? toggleAllChildren(g.subGoals, updatedCompleted) : undefined
+      };
+    }
+    if (g.subGoals) {
+      const result = toggleGoalRecursive(g.subGoals, targetId, newState);
+      if (result.found) {
+        found = true;
+        const updatedSubGoals = result.goals;
+        // If child was toggled, parent auto-completes only if all children are done
+        const allChildrenDone = updatedSubGoals.every(sub => sub.completed);
+        return {
+          ...g,
+          completed: allChildrenDone,
+          completedAt: allChildrenDone ? (g.completedAt || Date.now()) : undefined,
+          subGoals: updatedSubGoals
+        };
+      }
+    }
+    return g;
+  });
+  return { goals: newGoals, found };
+};
+
+const toggleAllChildren = (goals: Goal[], completed: boolean): Goal[] => {
+  return goals.map(g => ({
+    ...g,
+    completed,
+    completedAt: completed ? (g.completedAt || Date.now()) : undefined,
+    subGoals: g.subGoals ? toggleAllChildren(g.subGoals, completed) : undefined
+  }));
+};
+
+// Helper for recursive removal
+const removeGoalRecursive = (goals: Goal[], targetId: string): Goal[] => {
+  return goals
+    .filter(g => g.id !== targetId)
+    .map(g => ({
+      ...g,
+      subGoals: g.subGoals ? removeGoalRecursive(g.subGoals, targetId) : undefined
+    }));
+};
+
+// Helper for recursive day update
+const setGoalDayRecursive = (goals: Goal[], targetId: string, daySelected: string | undefined): Goal[] => {
+  return goals.map(g => {
+    if (g.id === targetId) {
+      return { ...g, daySelected };
+    }
+    if (g.subGoals) {
+      return { ...g, subGoals: setGoalDayRecursive(g.subGoals, targetId, daySelected) };
+    }
+    return g;
+  });
+};
 
 export const useStore = create<StoreState>()(
   persist(
@@ -212,22 +280,52 @@ export const useStore = create<StoreState>()(
           const week = state.weeks[weekId];
           if (!week) return state;
 
+          const { goals } = toggleGoalRecursive(week.goals, goalId);
+
           return {
             weeks: {
               ...state.weeks,
               [weekId]: {
                 ...week,
-                goals: week.goals.map((g) => {
-                  if (g.id === goalId) {
-                    const isNowCompleted = !g.completed;
-                    return { 
-                      ...g, 
-                      completed: isNowCompleted,
-                      completedAt: isNowCompleted ? Date.now() : undefined
-                    };
-                  }
-                  return g;
-                }),
+                goals,
+              },
+            },
+          };
+        }),
+
+      addSubGoal: (weekId, parentGoalId, text) =>
+        set((state) => {
+          const week = state.weeks[weekId];
+          if (!week) return state;
+
+          const addSubGoalRecursive = (goals: Goal[]): Goal[] => {
+            return goals.map(g => {
+              if (g.id === parentGoalId) {
+                const newSubGoal: Goal = {
+                  id: uuidv4(),
+                  text,
+                  completed: false, // Start as incomplete
+                  createdAt: Date.now(),
+                };
+                return {
+                  ...g,
+                  completed: false, // If adding a sub-goal, parent should probably be incomplete?
+                  subGoals: [...(g.subGoals || []), newSubGoal]
+                };
+              }
+              if (g.subGoals) {
+                return { ...g, subGoals: addSubGoalRecursive(g.subGoals) };
+              }
+              return g;
+            });
+          };
+
+          return {
+            weeks: {
+              ...state.weeks,
+              [weekId]: {
+                ...week,
+                goals: addSubGoalRecursive(week.goals),
               },
             },
           };
@@ -243,7 +341,7 @@ export const useStore = create<StoreState>()(
               ...state.weeks,
               [weekId]: {
                 ...week,
-                goals: week.goals.filter((g) => g.id !== goalId),
+                goals: removeGoalRecursive(week.goals, goalId),
               },
             },
           };
@@ -258,9 +356,7 @@ export const useStore = create<StoreState>()(
               ...state.weeks,
               [weekId]: {
                 ...week,
-                goals: week.goals.map((g) =>
-                  g.id === goalId ? { ...g, daySelected } : g
-                ),
+                goals: setGoalDayRecursive(week.goals, goalId, daySelected),
               },
             },
           };

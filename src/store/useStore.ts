@@ -24,6 +24,7 @@ interface StoreState extends AppState {
   removeLearning: (weekId: string, learningId: string) => void;
   updateLearning: (weekId: string, learningId: string, newText: string, newTags: string[]) => void;
   updateWeekTitle: (weekId: string, title: string) => void;
+  updateGoalNote: (weekId: string, goalId: string, note: string) => void;
   updateReflectionSections: (weekId: string, sections: { wentWell: string; surprised: string; different: string }) => void;
 }
 
@@ -499,6 +500,34 @@ export const useStore = create<StoreState>()(
                 learnings: week.learnings.map((l) =>
                   l.id === learningId ? { ...l, text: newText, tags: newTags } : l
                 ),
+              },
+            },
+          };
+        }),
+
+      updateGoalNote: (weekId, goalId, note) =>
+        set((state) => {
+          const week = state.weeks[weekId];
+          if (!week) return state;
+
+          const updateNoteRecursive = (goals: Goal[]): Goal[] => {
+            return goals.map(g => {
+              if (g.id === goalId) {
+                return { ...g, note };
+              }
+              if (g.subGoals) {
+                return { ...g, subGoals: updateNoteRecursive(g.subGoals) };
+              }
+              return g;
+            });
+          };
+
+          return {
+            weeks: {
+              ...state.weeks,
+              [weekId]: {
+                ...week,
+                goals: updateNoteRecursive(week.goals),
               },
             },
           };

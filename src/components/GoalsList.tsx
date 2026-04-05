@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { Goal } from '@/types';
-import { CheckCircle2, Circle, Trash2, CalendarDays, Sparkles, ChevronLeft, ChevronRight, ArrowRightToLine, ArchiveRestore, GitBranch, X, Plus } from 'lucide-react';
+import { CheckCircle2, Circle, Trash2, CalendarDays, Sparkles, ChevronLeft, ChevronRight, ArrowRightToLine, ArchiveRestore, GitBranch, X, Plus, MessageSquare } from 'lucide-react';
 
 const DAYS_OF_WEEK = [
   { label: 'Monday', short: 'M' },
@@ -36,6 +36,7 @@ export function GoalsList({ weekId }: { weekId: string }) {
   const toggleNestedGoal = useStore((state) => state.toggleNestedGoal);
   const updateDayTitle = useStore((state) => state.updateDayTitle);
   const addSubGoal = useStore((state) => state.addSubGoal);
+  const updateGoalNote = useStore((state) => state.updateGoalNote);
 
   const [isConditionalMode, setIsConditionalMode] = useState(false);
   const [branch1Label, setBranch1Label] = useState('Yes');
@@ -48,6 +49,9 @@ export function GoalsList({ weekId }: { weekId: string }) {
 
   const [addingSubGoalTo, setAddingSubGoalTo] = useState<string | null>(null);
   const [subGoalText, setSubGoalText] = useState('');
+
+  const [editingNoteGoalId, setEditingNoteGoalId] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState('');
 
   if (!week) return null;
 
@@ -87,6 +91,11 @@ export function GoalsList({ weekId }: { weekId: string }) {
     setBranch1Task('');
     setBranch2Task('');
     setIsConditionalMode(false);
+  };
+
+  const isHighPriority = (t: string) => {
+    const low = t.toLowerCase();
+    return low.includes('!!!') || low.includes('urgent') || low.includes('high') || low.includes('important');
   };
 
   const renderTextWithTags = (content: string) => {
@@ -165,6 +174,16 @@ export function GoalsList({ weekId }: { weekId: string }) {
             <Plus className="w-3.5 h-3.5" />
           </button>
           <button
+            onClick={() => {
+              setEditingNoteGoalId(goal.id);
+              setNoteText(goal.note || '');
+            }}
+            className={`p-1 rounded transition-colors focus:outline-none ${goal.note ? 'text-primary bg-primary/10' : 'text-muted-foreground/30 hover:text-primary hover:bg-primary/10'}`}
+            title="Goal notes"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+          </button>
+          <button
             onClick={() => removeGoal(weekId, goal.id)}
             className="p-1 text-muted-foreground/30 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors focus:outline-none"
             title="Delete goal"
@@ -174,6 +193,10 @@ export function GoalsList({ weekId }: { weekId: string }) {
         </div>
       );
 
+      const highPriority = isHighPriority(goal.text);
+      const subGoalCount = goal.subGoals?.length || 0;
+      const completedSubGoalCount = goal.subGoals?.filter(sg => sg.completed).length || 0;
+
       if (goal.type === 'conditional') {
         return (
           <div key={goal.id} className={`flex flex-col gap-2 p-3 mt-1 mb-1 rounded-xl border border-border/80 shadow-sm group transition-colors ${isToday ? 'bg-primary/5 hover:bg-primary/10' : 'bg-muted/30 hover:bg-muted/60'}`} style={{ marginLeft: depth * 20 }}>
@@ -181,8 +204,13 @@ export function GoalsList({ weekId }: { weekId: string }) {
               <div className="mt-0.5 rounded-md bg-background border border-border shadow-sm p-1 shrink-0">
                 <GitBranch className="w-3.5 h-3.5 text-primary" />
               </div>
-              <span className="text-sm flex-1 font-medium text-foreground py-0.5">
+              <span className={`text-sm flex-1 font-medium py-0.5 ${highPriority ? 'text-primary' : 'text-foreground'}`}>
                 {renderTextWithTags(goal.text)}
+                {subGoalCount > 0 && (
+                  <span className="ml-2 text-[10px] font-mono p-1 bg-muted rounded text-muted-foreground">
+                    {completedSubGoalCount}/{subGoalCount}
+                  </span>
+                )}
               </span>
               {goalActions}
             </div>
@@ -223,9 +251,11 @@ export function GoalsList({ weekId }: { weekId: string }) {
 
       // ── Regular Goal ──
       return (
-        <div key={goal.id} className="flex flex-col">
+        <div key={goal.id} className="flex flex-col relative">
           <div
-            className={`flex items-start gap-3 p-2 rounded-xl group transition-colors ${isToday ? 'hover:bg-primary/5' : 'hover:bg-muted/50'}`}
+            className={`flex items-start gap-3 p-2 rounded-xl group transition-all duration-300 ${
+              isToday ? 'hover:bg-primary/5' : 'hover:bg-muted/50'
+            } ${highPriority ? 'border border-primary/20 bg-primary/[0.02] shadow-[0_0_15px_-5px_rgba(var(--primary-rgb),0.3)]' : ''}`}
             style={{ marginLeft: depth * 20 }}
           >
             <button
@@ -236,9 +266,53 @@ export function GoalsList({ weekId }: { weekId: string }) {
                 ? <CheckCircle2 className="w-5 h-5 text-primary" />
                 : <Circle className={`w-5 h-5 ${isToday ? 'text-primary/50' : ''}`} />}
             </button>
-            <span className={`text-sm flex-1 pt-[2px] ${goal.completed ? 'text-muted-foreground line-through' : isToday ? 'text-foreground font-medium' : 'text-foreground'}`}>
-              {renderTextWithTags(goal.text)}
-            </span>
+            <div className="flex-1 flex flex-col pt-0.5 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className={`text-sm ${goal.completed ? 'text-muted-foreground line-through' : isToday ? 'text-foreground font-medium' : 'text-foreground'} ${highPriority && !goal.completed ? 'font-bold' : ''}`}>
+                  {renderTextWithTags(goal.text)}
+                </span>
+                {subGoalCount > 0 && (
+                  <span className="text-[9px] font-mono bg-muted/60 px-1.5 py-0.5 rounded text-muted-foreground/80 shrink-0">
+                    {completedSubGoalCount}/{subGoalCount}
+                  </span>
+                )}
+              </div>
+              
+              {/* Note Display */}
+              {goal.note && editingNoteGoalId !== goal.id && (
+                <p className="text-[11px] text-muted-foreground/60 italic line-clamp-1 mt-0.5 pl-1 border-l border-primary/10">
+                  {goal.note}
+                </p>
+              )}
+
+              {/* Note Editor */}
+              {editingNoteGoalId === goal.id && (
+                <div className="mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                  <textarea
+                    autoFocus
+                    placeholder="Add context or notes..."
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        updateGoalNote(weekId, goal.id, noteText);
+                        setEditingNoteGoalId(null);
+                      } else if (e.key === 'Escape') {
+                        setEditingNoteGoalId(null);
+                      }
+                    }}
+                    onBlur={() => {
+                      updateGoalNote(weekId, goal.id, noteText);
+                      setEditingNoteGoalId(null);
+                    }}
+                    className="w-full text-xs p-2 bg-muted/40 border border-primary/10 rounded-lg outline-none focus:border-primary/30 min-h-[60px] resize-none leading-relaxed"
+                  />
+                  <div className="flex justify-end gap-2 mt-1">
+                     <span className="text-[9px] text-muted-foreground/50">Ctrl+Enter to save</span>
+                  </div>
+                </div>
+              )}
+            </div>
             {goalActions}
           </div>
 

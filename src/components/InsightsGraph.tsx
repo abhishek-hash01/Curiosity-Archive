@@ -83,26 +83,26 @@ function ProjectNode({ data }: NodeProps) {
 
 // Readable pill nodes with visible inline text
 function GoalNode({ data }: NodeProps) {
-  const { label, completed } = data as any;
-  const truncated = label?.length > 32 ? label.slice(0, 30) + '…' : label;
+  const { label, completed, isSubGoal } = data as any;
+  const truncated = label?.length > (isSubGoal ? 24 : 32) ? label.slice(0, isSubGoal ? 22 : 30) + '…' : label;
   return (
     <div
       title={label}
       style={{
         background: completed ? 'var(--primary)' : 'var(--background)',
         color: completed ? 'var(--primary-foreground)' : 'var(--foreground)',
-        border: completed ? '1.5px solid var(--primary)' : '1.5px solid var(--border)',
-        borderRadius: '8px',
-        padding: '5px 10px',
-        fontSize: '11px',
+        border: completed ? '1px solid var(--primary)' : '1px solid var(--border)',
+        borderRadius: '6px',
+        padding: isSubGoal ? '3px 6px' : '5px 10px',
+        fontSize: isSubGoal ? '9.5px' : '11px',
         fontFamily: 'var(--font-sans)',
-        maxWidth: '160px',
+        maxWidth: isSubGoal ? '120px' : '160px',
         whiteSpace: 'nowrap' as const,
         overflow: 'hidden',
         textDecoration: completed ? 'line-through' : 'none',
         opacity: completed ? 0.75 : 1,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-        cursor: label?.length > 32 ? 'pointer' : 'default',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+        cursor: 'default',
       }}
     >
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
@@ -197,16 +197,41 @@ function ForceGraph({ weeks, projects, searchTag, onWeekSelect, toggleFullscreen
       });
 
       // Goals
-      const flattenGoals = (goals: Goal[], branchLabel?: string) => {
+      const flattenGoals = (goals: Goal[], parentNodeId: string, depth = 0, branchLabel?: string) => {
         goals.forEach(g => {
-          nodes.push({ id: `goal:${g.id}`, type: 'goalNode', data: { label: branchLabel ? `[${branchLabel}] ${g.text}` : g.text, completed: g.completed }, position: { x: 0, y: 0 } });
-          edges.push({ id: `e:week-goal:${week.id}-${g.id}`, source: `week:${week.id}`, target: `goal:${g.id}`, style: { opacity: 0.5, stroke: g.completed ? 'var(--primary)' : '#9ca3af', strokeWidth: 1.5 } });
+          const nodeId = `goal:${g.id}`;
+          nodes.push({ 
+            id: nodeId, 
+            type: 'goalNode', 
+            data: { 
+              label: branchLabel ? `[${branchLabel}] ${g.text}` : g.text, 
+              completed: g.completed,
+              isSubGoal: depth > 0 
+            }, 
+            position: { x: 0, y: 0 } 
+          });
+          
+          edges.push({ 
+            id: `e:parent-child:${parentNodeId}-${g.id}`, 
+            source: parentNodeId, 
+            target: nodeId, 
+            style: { 
+              opacity: depth > 0 ? 0.25 : 0.5, 
+              stroke: g.completed ? 'var(--primary)' : '#9ca3af', 
+              strokeWidth: depth > 0 ? 1 : 1.5 
+            } 
+          });
+
+          if (g.subGoals) {
+            flattenGoals(g.subGoals, nodeId, depth + 1);
+          }
+          
           if (g.type === 'conditional' && g.branches) {
-             g.branches.forEach(b => flattenGoals(b.goals, b.label));
+             g.branches.forEach(b => flattenGoals(b.goals, nodeId, depth + 1, b.label));
           }
         });
       };
-      flattenGoals(week.goals);
+      flattenGoals(week.goals, `week:${week.id}`);
 
       // Insights
       week.learnings.forEach(l => {
@@ -413,6 +438,10 @@ export default function InsightsGraphWrapper(props: any) {
         <div className="flex items-center gap-2">
           <div style={{ width: 14, height: 14, borderRadius: 4, background: 'var(--background)', border: '1.5px solid var(--border)', flexShrink: 0 }} />
           <span className="text-[11px] text-foreground/80">Pending goal</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div style={{ width: 10, height: 10, borderRadius: 3, background: 'var(--background)', border: '1px solid var(--border)', flexShrink: 0, marginLeft: 2 }} />
+          <span className="text-[11px] text-foreground/80 italic">Sub-goal</span>
         </div>
         <div className="flex items-center gap-2">
           <div style={{ width: 14, height: 14, borderRadius: 6, background: 'rgba(139,92,246,0.12)', border: '1.5px solid rgba(139,92,246,0.45)', flexShrink: 0 }} />

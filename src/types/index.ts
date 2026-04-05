@@ -21,6 +21,7 @@ export interface Goal {
 
   // Sub-tasks features
   subGoals?: Goal[];
+  note?: string;
 }
 
 export interface Project {

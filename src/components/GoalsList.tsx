@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { Goal } from '@/types';
-import { CheckCircle2, Circle, Trash2, CalendarDays, Sparkles, ChevronLeft, ChevronRight, ArrowRightToLine, ArchiveRestore, GitBranch, X, Plus, MessageSquare } from 'lucide-react';
+import { CheckCircle2, Circle, Trash2, CalendarDays, Sparkles, ChevronLeft, ChevronRight, ArrowRightToLine, ArchiveRestore, GitBranch, X, Plus, MessageSquare, ChevronDown } from 'lucide-react';
 
 const DAYS_OF_WEEK = [
   { label: 'Monday', short: 'M' },
@@ -52,6 +52,17 @@ export function GoalsList({ weekId }: { weekId: string }) {
 
   const [editingNoteGoalId, setEditingNoteGoalId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
+
+  const [collapsedGoalIds, setCollapsedGoalIds] = useState<Set<string>>(new Set());
+
+  const toggleCollapse = (goalId: string) => {
+    setCollapsedGoalIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(goalId)) next.delete(goalId);
+      else next.add(goalId);
+      return next;
+    });
+  };
 
   if (!week) return null;
 
@@ -204,14 +215,24 @@ export function GoalsList({ weekId }: { weekId: string }) {
               <div className="mt-0.5 rounded-md bg-background border border-border shadow-sm p-1 shrink-0">
                 <GitBranch className="w-3.5 h-3.5 text-primary" />
               </div>
-              <span className={`text-sm flex-1 font-medium py-0.5 ${highPriority ? 'text-primary' : 'text-foreground'}`}>
-                {renderTextWithTags(goal.text)}
+              <div className="flex-1 flex items-center gap-2 py-0.5">
                 {subGoalCount > 0 && (
-                  <span className="ml-2 text-[10px] font-mono p-1 bg-muted rounded text-muted-foreground">
-                    {completedSubGoalCount}/{subGoalCount}
-                  </span>
+                  <button 
+                    onClick={() => toggleCollapse(goal.id)}
+                    className="p-0.5 hover:bg-muted rounded transition-colors text-muted-foreground"
+                  >
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${collapsedGoalIds.has(goal.id) ? '-rotate-90' : ''}`} />
+                  </button>
                 )}
-              </span>
+                <span className={`text-sm font-medium ${highPriority ? 'text-primary' : 'text-foreground'}`}>
+                  {renderTextWithTags(goal.text)}
+                  {subGoalCount > 0 && (
+                    <span className="ml-2 text-[10px] font-mono p-1 bg-muted rounded text-muted-foreground">
+                      {completedSubGoalCount}/{subGoalCount}
+                    </span>
+                  )}
+                </span>
+              </div>
               {goalActions}
             </div>
             
@@ -268,6 +289,14 @@ export function GoalsList({ weekId }: { weekId: string }) {
             </button>
             <div className="flex-1 flex flex-col pt-0.5 min-w-0">
               <div className="flex items-center gap-2">
+                {subGoalCount > 0 && (
+                  <button 
+                    onClick={() => toggleCollapse(goal.id)}
+                    className="p-0.5 -ml-1 hover:bg-muted rounded transition-colors text-muted-foreground"
+                  >
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${collapsedGoalIds.has(goal.id) ? '-rotate-90' : ''}`} />
+                  </button>
+                )}
                 <span className={`text-sm ${goal.completed ? 'text-muted-foreground line-through' : isToday ? 'text-foreground font-medium' : 'text-foreground'} ${highPriority && !goal.completed ? 'font-bold' : ''}`}>
                   {renderTextWithTags(goal.text)}
                 </span>
@@ -316,32 +345,39 @@ export function GoalsList({ weekId }: { weekId: string }) {
             {goalActions}
           </div>
 
-          {/* Inline Sub-goal Input */}
-          {addingSubGoalTo === goal.id && (
-            <div className="flex items-center gap-3 p-2 ml-8 -mt-1 group transition-colors" style={{ marginLeft: (depth + 1) * 20 }}>
-              <div className="w-5 flex justify-center shrink-0">
-                <Plus className="w-3.5 h-3.5 text-primary/40" />
-              </div>
-              <input
-                autoFocus
-                type="text"
-                placeholder="Sub-task name..."
-                value={subGoalText}
-                onChange={(e) => setSubGoalText(e.target.value)}
-                onKeyDown={(e) => handleSubGoalKeyDown(e, goal.id)}
-                onBlur={() => {
-                  if (!subGoalText.trim()) setAddingSubGoalTo(null);
-                }}
-                className="text-sm flex-1 bg-transparent border-b border-primary/20 focus:border-primary outline-none py-0.5 placeholder:text-muted-foreground/40 transition-colors"
-              />
-            </div>
-          )}
+          {/* Note content remains visible even if children are collapsed? Usually yes */}
 
-          {/* Recursive sub-goals */}
-          {goal.subGoals && goal.subGoals.length > 0 && (
-            <div className="flex flex-col">
-              {renderGoals(goal.subGoals, isToday, isAnytimeList, depth + 1)}
-            </div>
+          {/* Children and input only if NOT collapsed */}
+          {!collapsedGoalIds.has(goal.id) && (
+            <>
+              {/* Inline Sub-goal Input */}
+              {addingSubGoalTo === goal.id && (
+                <div className="flex items-center gap-3 p-2 ml-8 -mt-1 group transition-colors" style={{ marginLeft: (depth + 1) * 20 }}>
+                  <div className="w-5 flex justify-center shrink-0">
+                    <Plus className="w-3.5 h-3.5 text-primary/40" />
+                  </div>
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Sub-task name..."
+                    value={subGoalText}
+                    onChange={(e) => setSubGoalText(e.target.value)}
+                    onKeyDown={(e) => handleSubGoalKeyDown(e, goal.id)}
+                    onBlur={() => {
+                      if (!subGoalText.trim()) setAddingSubGoalTo(null);
+                    }}
+                    className="text-sm flex-1 bg-transparent border-b border-primary/20 focus:border-primary outline-none py-0.5 placeholder:text-muted-foreground/40 transition-colors"
+                  />
+                </div>
+              )}
+
+              {/* Recursive sub-goals */}
+              {goal.subGoals && goal.subGoals.length > 0 && (
+                <div className="flex flex-col">
+                  {renderGoals(goal.subGoals, isToday, isAnytimeList, depth + 1)}
+                </div>
+              )}
+            </>
           )}
         </div>
       );

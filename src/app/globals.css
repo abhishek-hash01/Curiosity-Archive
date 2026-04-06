@@ -72,13 +72,11 @@ body {
 .react-flow__node {
   color: var(--foreground) !important;
   border-radius: 6px !important;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .react-flow__node:hover {
-  /* Graph background hover */
-  background-color: var(--purple-soft) !important;
-  border-color: var(--purple-secondary) !important;
+  transform: translateY(-1px);
 }
 
 .react-flow__handle {
@@ -100,6 +98,5 @@ body {
 }
 
 .react-flow__node.selected {
-  border-color: var(--primary) !important;
-  box-shadow: 0 0 0 2px var(--purple-soft) !important;
+  box-shadow: 0 0 0 2px rgba(107, 76, 154, 0.12) !important;
 }

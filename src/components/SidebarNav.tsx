@@ -17,10 +17,19 @@ export function SidebarNav() {
   const weeks = useStore((state) => state.weeks);
   const [weekId, setWeekId] = useState<string | null>(null);         // planning week
   const [realWeekId, setRealWeekId] = useState<string | null>(null); // reflection week
+  const [todayDate, setTodayDate] = useState<string | null>(null);
 
   useEffect(() => {
     setWeekId(getCurrentWeekId());
     setRealWeekId(getRealCurrentWeekId());
+    setTodayDate(
+      new Date().toLocaleDateString('en-GB', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })
+    );
   }, []);
 
   const currentWeek = weekId ? weeks[weekId] : null;         // goals/title week
@@ -47,6 +56,15 @@ export function SidebarNav() {
 
   return (
     <div className="flex md:flex-col gap-1 items-start w-full">
+
+      {/* Today's date */}
+      {todayDate && (
+        <div className="w-full px-3 pb-2 hidden md:block">
+          <span className="text-[11px] font-mono text-muted-foreground/70 tracking-wide">
+            {todayDate}
+          </span>
+        </div>
+      )}
 
       {/* This Week + inline quick stats */}
       <div className="w-full">

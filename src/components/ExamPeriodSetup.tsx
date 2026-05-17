@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Plus, BookOpen, Calendar, Target, ChevronRight, Pencil } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { ExamPeriod } from '@/types';
+import { DatePicker } from './DatePicker';
 
 interface Props {
   onClose: () => void;
@@ -112,28 +113,17 @@ export function ExamPeriodSetup({ onClose, onCreated, editPeriod }: Props) {
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Calendar className="w-3 h-3" /> Start Date
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full rounded-md border border-border bg-muted/20 px-3 py-2 text-sm focus:outline-none focus:border-primary/50 transition-colors"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Calendar className="w-3 h-3" /> End Date
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full rounded-md border border-border bg-muted/20 px-3 py-2 text-sm focus:outline-none focus:border-primary/50 transition-colors"
-              />
-            </div>
+            <DatePicker
+              value={startDate}
+              onChange={setStartDate}
+              label="📅 Start Date"
+            />
+            <DatePicker
+              value={endDate}
+              onChange={setEndDate}
+              label="📅 End Date"
+              minDate={startDate || undefined}
+            />
           </div>
 
           {/* Subjects */}

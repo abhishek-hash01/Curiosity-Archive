@@ -112,3 +112,12 @@ body {
 .react-flow__node.selected {
   box-shadow: 0 0 0 2px rgba(107, 76, 154, 0.12) !important;
 }
+
+/* Hide scrollbar but keep scroll functionality */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

@@ -164,7 +164,7 @@ export function FocusTimer({ slot, period, onClose }: Props) {
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-[100] w-72 rounded-2xl border shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300"
+      className="fixed bottom-4 left-3 right-3 sm:left-auto sm:right-6 sm:bottom-6 z-[100] max-w-xs mx-auto sm:mx-0 sm:w-72 sm:max-w-none rounded-2xl border shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300"
       style={{
         backgroundColor: cfg.bg,
         borderColor: cfg.color + '50',

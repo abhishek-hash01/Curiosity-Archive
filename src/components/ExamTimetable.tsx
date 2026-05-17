@@ -166,7 +166,7 @@ export function ExamTimetable({ period, onStartFocus }: Props) {
   return (
     <div className="flex flex-col h-full">
       {/* ── Stats bar + subject breakdown ── */}
-      <div className="flex items-center gap-6 px-6 py-3 border-b border-border/50 bg-muted/20 shrink-0 flex-wrap gap-y-2">
+      <div className="flex items-center gap-3 sm:gap-6 px-3 sm:px-6 py-2 sm:py-3 border-b border-border/50 bg-muted/20 shrink-0 flex-wrap gap-y-1.5">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sessions</span>
           <span className="text-sm font-mono font-semibold text-foreground">{completedSlots}/{totalSlots}</span>
@@ -201,8 +201,8 @@ export function ExamTimetable({ period, onStartFocus }: Props) {
             </div>
           </>
         )}
-        {/* Legend (pushed right) */}
-        <div className="ml-auto flex items-center gap-3 flex-wrap">
+        {/* Legend (pushed right, hidden on small screens) */}
+        <div className="ml-auto hidden sm:flex items-center gap-3 flex-wrap">
           {(Object.keys(ACTIVITY_STYLE) as ActivityType[]).map((act) => (
             <span key={act} className="flex items-center gap-1 text-[10px] text-muted-foreground">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ACTIVITY_STYLE[act].dot }} />
@@ -213,7 +213,7 @@ export function ExamTimetable({ period, onStartFocus }: Props) {
       </div>
 
       {/* ── Week navigation ── */}
-      <div className="flex items-center justify-between px-6 py-2 border-b border-border/40 bg-background shrink-0">
+      <div className="flex items-center justify-between px-3 sm:px-6 py-2 border-b border-border/40 bg-background shrink-0">
         <button
           onClick={() => setWeekIndex((i) => Math.max(0, i - 1))}
           disabled={weekIndex === 0}
@@ -221,18 +221,18 @@ export function ExamTimetable({ period, onStartFocus }: Props) {
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
           {weekStarts.map((ws, i) => (
             <button
               key={i}
               onClick={() => setWeekIndex(i)}
-              className={`px-2.5 py-1 rounded-md text-xs font-mono transition-all ${
+              className={`px-2 sm:px-2.5 py-1 rounded-md text-xs font-mono transition-all whitespace-nowrap shrink-0 ${
                 i === weekIndex
                   ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
               }`}
             >
-              Week {i + 1}
+              W{i + 1}
             </button>
           ))}
         </div>
@@ -247,14 +247,14 @@ export function ExamTimetable({ period, onStartFocus }: Props) {
 
       {/* ── Copy Day modal ── */}
       {copySource && (
-        <div className="px-6 py-3 border-b border-primary/20 bg-primary/5 flex items-center gap-4 shrink-0 flex-wrap">
+        <div className="px-3 sm:px-6 py-2 sm:py-3 border-b border-primary/20 bg-primary/5 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 shrink-0">
           <div className="flex items-center gap-2">
             <Copy className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-semibold text-primary">
               Copy {format(parseISO(copySource), 'EEE MMM d')}'s slots to:
             </span>
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap max-h-24 overflow-y-auto">
             {allDays
               .filter((d) => format(d, 'yyyy-MM-dd') !== copySource)
               .map((d) => {
@@ -299,7 +299,7 @@ export function ExamTimetable({ period, onStartFocus }: Props) {
         <div className="min-w-max">
           {/* Day headers */}
           <div className="flex sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border">
-            <div className="w-14 shrink-0" />
+            <div className="w-10 sm:w-14 shrink-0" />
             {visibleDays.map((day) => {
               const dateStr = format(day, 'yyyy-MM-dd');
               const isToday = dateStr === format(new Date(), 'yyyy-MM-dd');
@@ -308,7 +308,7 @@ export function ExamTimetable({ period, onStartFocus }: Props) {
               return (
                 <div
                   key={dateStr}
-                  className={`w-36 shrink-0 px-2 py-3 border-r border-border text-center relative group ${
+                  className={`w-28 sm:w-36 shrink-0 px-1.5 sm:px-2 py-2 sm:py-3 border-r border-border text-center relative group ${
                     isToday ? 'bg-primary/5' : ''
                   }`}
                 >
@@ -344,7 +344,7 @@ export function ExamTimetable({ period, onStartFocus }: Props) {
           {/* Body */}
           <div className="flex">
             {/* Time axis */}
-            <div className="w-14 shrink-0 relative" style={{ height: CELL_HEIGHT * TOTAL_HOURS }}>
+            <div className="w-10 sm:w-14 shrink-0 relative" style={{ height: CELL_HEIGHT * TOTAL_HOURS }}>
               {hours.map((h) => (
                 <div
                   key={h}
@@ -384,7 +384,7 @@ export function ExamTimetable({ period, onStartFocus }: Props) {
               return (
                 <div
                   key={dateStr}
-                  className="w-36 shrink-0 relative border-r border-border cursor-pointer group"
+                  className="w-28 sm:w-36 shrink-0 relative border-r border-border cursor-pointer group"
                   style={{ height: CELL_HEIGHT * TOTAL_HOURS }}
                   onClick={() => setAddingSlot({ date: dateStr })}
                 >

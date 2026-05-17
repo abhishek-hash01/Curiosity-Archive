@@ -6,7 +6,11 @@ import { getCurrentWeekId, getCurrentWeekStartDate, getRealCurrentWeekId, getRea
 import { GoalsList } from '@/components/GoalsList';
 import { LearningStream } from '@/components/LearningStream';
 import { WeeklyReflection } from '@/components/WeeklyReflection';
+import { FocusTimer } from '@/components/FocusTimer';
 import { format, parseISO, addDays, subWeeks, startOfWeek } from 'date-fns';
+import Link from 'next/link';
+import { GraduationCap, Play, ChevronRight } from 'lucide-react';
+import { ExamPeriod, TimeSlot } from '@/types';
 
 function getStreak(weeks: Record<string, { startDate: string; goals: any[]; learnings: any[] }>): number {
   let streak = 0;
@@ -56,7 +60,11 @@ export default function ThisWeekPage() {
   const updateWeekTitle = useStore((state) => state.updateWeekTitle);
   const week = useStore((state) => weekId ? state.weeks[weekId] : null);
   const allWeeks = useStore((state) => state.weeks);
+  const examPeriods = useStore((state) => state.examPeriods);
   const streak = getStreak(allWeeks);
+
+  // Focus timer state
+  const [focusSlot, setFocusSlot] = useState<{ slot: TimeSlot; period: ExamPeriod } | null>(null);
 
   useEffect(() => {
     const currentId = getCurrentWeekId();
@@ -92,6 +100,21 @@ export default function ThisWeekPage() {
       </div>
     );
   }
+
+  // Today's exam sessions
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  type TodaySlot = { slot: TimeSlot; period: ExamPeriod };
+  const todayExamSlots: TodaySlot[] = Object.values(examPeriods).flatMap((ep) => {
+    const start = new Date(ep.startDate);
+    const end = new Date(ep.endDate);
+    end.setHours(23, 59, 59);
+    const now = new Date();
+    if (now < start || now > end) return [];
+    return ep.slots
+      .filter((s) => s.date === todayStr)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+      .map((slot) => ({ slot, period: ep }));
+  });
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -136,6 +159,74 @@ export default function ThisWeekPage() {
             </p>
           </div>
         )}
+
+        {/* Today's exam sessions banner */}
+        {todayExamSlots.length > 0 && (
+          <div className="mt-3 rounded-lg border border-primary/25 bg-primary/5 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-primary/15">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-semibold text-primary">
+                  {todayExamSlots[0].period.title} — Today&apos;s Sessions
+                </span>
+              </div>
+              <Link
+                href="/exam"
+                className="flex items-center gap-1 text-[10px] font-mono text-primary/70 hover:text-primary transition-colors"
+              >
+                Open Timetable
+                <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="flex flex-col gap-1 p-2">
+              {todayExamSlots.map(({ slot, period }) => {
+                const actColors: Record<string, string> = {
+                  study: '#6b4c9a', pyq: '#c0622c', revision: '#2d7d5a', mock: '#1a6fa8', break: '#7a7a7a',
+                };
+                const color = actColors[slot.activity] ?? '#6b4c9a';
+                const actLabels: Record<string, string> = {
+                  study: 'Study', pyq: 'PYQ', revision: 'Revision', mock: 'Mock', break: 'Break',
+                };
+                return (
+                  <div
+                    key={slot.id}
+                    className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-primary/5 transition-colors"
+                    style={{ opacity: slot.completed ? 0.5 : 1 }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <div className="flex-1 min-w-0">
+                      <span
+                        className="text-xs font-medium"
+                        style={{ textDecoration: slot.completed ? 'line-through' : 'none' }}
+                      >
+                        {slot.subject}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono ml-2">
+                        {slot.startTime}–{slot.endTime}
+                      </span>
+                    </div>
+                    <span
+                      className="text-[9px] font-mono px-1.5 py-0.5 rounded-full border"
+                      style={{ color, borderColor: color + '40', backgroundColor: color + '12' }}
+                    >
+                      {actLabels[slot.activity]}
+                    </span>
+                    {!slot.completed && (
+                      <button
+                        onClick={() => setFocusSlot({ slot, period })}
+                        className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-md transition-all hover:scale-105 active:scale-95 text-white shrink-0"
+                        style={{ backgroundColor: color }}
+                      >
+                        <Play className="w-2.5 h-2.5" />
+                        Start
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto w-full px-8 py-8 md:grid md:grid-cols-2 lg:grid-cols-5 gap-12">
@@ -152,6 +243,15 @@ export default function ThisWeekPage() {
           <LearningStream weekId={reflectionWeekId ?? weekId ?? ''} />
         </div>
       </div>
+
+      {/* Floating focus timer — triggered from today's exam sessions banner */}
+      {focusSlot && (
+        <FocusTimer
+          slot={focusSlot.slot}
+          period={focusSlot.period}
+          onClose={() => setFocusSlot(null)}
+        />
+      )}
     </div>
   );
 }

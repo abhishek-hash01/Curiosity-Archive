@@ -7,9 +7,10 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import dynamic from 'next/dynamic';
-import { Trash2, Plus, Tag as TagIcon, X, CheckCircle2, Circle, Search } from 'lucide-react';
+import { Trash2, Plus, Tag as TagIcon, X, CheckCircle2, Circle, Search, GraduationCap, ChevronRight } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 import { AppState } from '@/types';
+import Link from 'next/link';
 
 const InsightsGraph = dynamic<{
   weeks: AppState['weeks'];
@@ -21,6 +22,7 @@ const InsightsGraph = dynamic<{
 export default function InsightsPage() {
   const weeks = useStore((state) => state.weeks);
   const projects = useStore((state) => state.projects);
+  const examPeriods = useStore((state) => state.examPeriods);
   const [activeTab, setActiveTab] = useState<'graph' | 'trends' | 'projects'>('graph');
   const [searchTag, setSearchTag] = useState('');
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
@@ -168,6 +170,71 @@ export default function InsightsPage() {
                 </ResponsiveContainer>
               </div>
             </div>
+
+            {/* Exam Periods overview */}
+            {Object.keys(examPeriods).length > 0 && (
+              <div className="flex flex-col gap-4">
+                <div>
+                  <h3 className="font-semibold tracking-tight flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-primary" />
+                    Exam Periods
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1 mb-4">All your study timetable periods</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.values(examPeriods)
+                    .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+                    .map((ep) => {
+                      const total = ep.slots.length;
+                      const done = ep.slots.filter((s) => s.completed).length;
+                      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                      const today = new Date();
+                      const isActive = today >= new Date(ep.startDate) && today <= new Date(ep.endDate);
+                      return (
+                        <div key={ep.id} className="flex flex-col gap-3 rounded-xl border border-border bg-background p-4 hover:bg-muted/10 transition-colors">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-sm tracking-tight">{ep.title}</h4>
+                                {isActive && (
+                                  <span className="flex items-center gap-1 text-[9px] font-mono text-green-700 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full">
+                                    <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                                    active
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                                {format(parseISO(ep.startDate), 'MMM d')} &ndash; {format(parseISO(ep.endDate), 'MMM d, yyyy')}
+                              </p>
+                            </div>
+                            <Link href="/exam" className="text-muted-foreground hover:text-primary transition-colors">
+                              <ChevronRight className="w-4 h-4" />
+                            </Link>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {ep.subjects.map((s) => (
+                              <span key={s} className="text-[10px] font-mono text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-full">
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                          {total > 0 && (
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-mono text-muted-foreground">{done}/{total} sessions done</span>
+                                <span className="text-[10px] font-mono text-muted-foreground">{pct}%</span>
+                              </div>
+                              <div className="h-1 rounded-full bg-border overflow-hidden">
+                                <div className="h-full bg-primary/60 transition-all" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

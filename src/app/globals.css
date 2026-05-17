@@ -40,6 +40,18 @@
   /* Additional Purple Accents */
   --purple-secondary: #8c6bcb; /* Soft Purple */
   --purple-soft: #efe7fa; /* Light Accent / Hover */
+
+  /* Exam Mode — Activity Type Colors */
+  --exam-study: #6b4c9a;        /* purple  — deep focus */
+  --exam-study-soft: #efe7fa;
+  --exam-pyq: #c0622c;          /* warm orange — practice */
+  --exam-pyq-soft: #faeee7;
+  --exam-revision: #2d7d5a;     /* green — review */
+  --exam-revision-soft: #e7f5ef;
+  --exam-mock: #1a6fa8;         /* blue — test conditions */
+  --exam-mock-soft: #e7f0fa;
+  --exam-break: #7a7a7a;        /* muted — rest */
+  --exam-break-soft: #f0f0ec;
 }
 
 body {

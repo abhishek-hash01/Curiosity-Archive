@@ -2,12 +2,14 @@
 
 import { useStore } from '@/store/useStore';
 import { getCurrentWeekId, getCurrentWeekStartDate } from '@/utils/helpers';
-import { format, parseISO } from 'date-fns';
-import { CheckCircle2, ChevronDown, ChevronRight, ChevronsRight, Check } from 'lucide-react';
+import { format, parseISO, addDays, isWithinInterval } from 'date-fns';
+import { CheckCircle2, ChevronDown, ChevronRight, ChevronsRight, Check, GraduationCap } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { ExamPeriod } from '@/types';
 
 export default function TimelinePage() {
   const weeks = useStore((state) => state.weeks);
+  const examPeriods = useStore((state) => state.examPeriods);
   const initializeWeek = useStore((state) => state.initializeWeek);
   const [currentWeekId, setCurrentWeekId] = useState<string | null>(null);
 
@@ -21,6 +23,18 @@ export default function TimelinePage() {
   const sortedWeeks = Object.values(weeks).sort((a, b) =>
     new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
   );
+
+  // Build a helper to find overlapping exam periods for a week
+  const getExamPeriodsForWeek = (startDate: string): ExamPeriod[] => {
+    const weekStart = parseISO(startDate);
+    const weekEnd = addDays(weekStart, 6);
+    return Object.values(examPeriods).filter((ep) => {
+      const epStart = parseISO(ep.startDate);
+      const epEnd = parseISO(ep.endDate);
+      // Overlap: week and exam period intersect
+      return epStart <= weekEnd && epEnd >= weekStart;
+    });
+  };
 
   if (sortedWeeks.length === 0) {
     return (
@@ -39,14 +53,42 @@ export default function TimelinePage() {
 
       <div className="flex-1 overflow-y-auto w-full px-8 py-10">
         <div className="max-w-3xl mx-auto flex flex-col gap-12 pb-[30vh]">
-          {sortedWeeks.map((week) => (
-            <WeekCard
-              key={week.id}
-              week={week}
-              isCurrentWeek={week.id === currentWeekId}
-              currentWeekId={currentWeekId}
-            />
-          ))}
+          {sortedWeeks.map((week) => {
+            const examBanners = getExamPeriodsForWeek(week.startDate);
+            return (
+              <div key={week.id}>
+                {examBanners.map((ep) => (
+                  <div
+                    key={ep.id}
+                    className="mb-3 flex items-center gap-2.5 px-3 py-2 rounded-lg bg-primary/8 border border-primary/20 text-xs"
+                  >
+                    <GraduationCap className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="font-semibold text-primary">{ep.title}</span>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="text-muted-foreground font-mono">
+                      {format(parseISO(ep.startDate), 'MMM d')} – {format(parseISO(ep.endDate), 'MMM d')}
+                    </span>
+                    <div className="flex items-center gap-1 ml-auto flex-wrap">
+                      {ep.subjects.slice(0, 3).map((s) => (
+                        <span key={s} className="text-[9px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20">
+                          {s}
+                        </span>
+                      ))}
+                      {ep.subjects.length > 3 && (
+                        <span className="text-[9px] font-mono text-muted-foreground">+{ep.subjects.length - 3} more</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <WeekCard
+                  week={week}
+                  isCurrentWeek={week.id === currentWeekId}
+                  currentWeekId={currentWeekId}
+                  isExamWeek={examBanners.length > 0}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -57,10 +99,12 @@ function WeekCard({
   week,
   isCurrentWeek,
   currentWeekId,
+  isExamWeek,
 }: {
   week: ReturnType<typeof useStore.getState>['weeks'][string];
   isCurrentWeek: boolean;
   currentWeekId: string | null;
+  isExamWeek?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [confirmMove, setConfirmMove] = useState(false);
@@ -110,6 +154,12 @@ function WeekCard({
                 {isCurrentWeek && (
                   <span className="ml-2 text-xs font-mono text-purplePrimary bg-purpleSoft px-1.5 py-0.5 rounded-sm">
                     current
+                  </span>
+                )}
+                {isExamWeek && (
+                  <span className="ml-2 text-xs font-mono text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-sm inline-flex items-center gap-1">
+                    <GraduationCap className="w-2.5 h-2.5" />
+                    exam
                   </span>
                 )}
               </h3>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { AppState, Goal, LearningEntry, Project, Week, Tag } from '../types';
+import { AppState, Goal, LearningEntry, Project, Week, Tag, ExamPeriod, TimeSlot, ActivityType } from '../types';
 
 interface StoreState extends AppState {
   // Actions
@@ -26,6 +26,14 @@ interface StoreState extends AppState {
   updateWeekTitle: (weekId: string, title: string) => void;
   updateGoalNote: (weekId: string, goalId: string, note: string) => void;
   updateReflectionSections: (weekId: string, sections: { wentWell: string; surprised: string; different: string }) => void;
+  // Exam Mode actions
+  createExamPeriod: (title: string, startDate: string, endDate: string, subjects: string[], dailyTargetHours?: number) => string;
+  deleteExamPeriod: (periodId: string) => void;
+  updateExamPeriod: (periodId: string, updates: Partial<Pick<ExamPeriod, 'title' | 'startDate' | 'endDate' | 'subjects' | 'dailyTargetHours'>>) => void;
+  addTimeSlot: (periodId: string, slot: Omit<TimeSlot, 'id'>) => void;
+  updateTimeSlot: (periodId: string, slotId: string, updates: Partial<Omit<TimeSlot, 'id'>>) => void;
+  deleteTimeSlot: (periodId: string, slotId: string) => void;
+  toggleTimeSlot: (periodId: string, slotId: string) => void;
 }
 
 // Helper for recursive completion toggle
@@ -100,6 +108,7 @@ export const useStore = create<StoreState>()(
     (set) => ({
       weeks: {},
       projects: {},
+      examPeriods: {},
 
       initializeWeek: (weekId, startDate) =>
         set((state) => {
@@ -429,7 +438,9 @@ export const useStore = create<StoreState>()(
         set(() => ({
           weeks: data.weeks || {},
           projects: data.projects || {},
+          examPeriods: data.examPeriods || {},
         })),
+
 
       mergeWeekInto: (sourceWeekId, targetWeekId) =>
         set((state) => {
@@ -541,6 +552,94 @@ export const useStore = create<StoreState>()(
             weeks: {
               ...state.weeks,
               [weekId]: { ...week, reflectionSections: sections },
+            },
+          };
+        }),
+
+      // ── Exam Mode Actions ──────────────────────────────────────
+      createExamPeriod: (title, startDate, endDate, subjects, dailyTargetHours) => {
+        const id = uuidv4();
+        set((state) => ({
+          examPeriods: {
+            ...state.examPeriods,
+            [id]: { id, title, startDate, endDate, subjects, slots: [], dailyTargetHours },
+          },
+        }));
+        return id;
+      },
+
+      deleteExamPeriod: (periodId) =>
+        set((state) => {
+          const next = { ...state.examPeriods };
+          delete next[periodId];
+          return { examPeriods: next };
+        }),
+
+      updateExamPeriod: (periodId, updates) =>
+        set((state) => {
+          const period = state.examPeriods[periodId];
+          if (!period) return state;
+          return {
+            examPeriods: {
+              ...state.examPeriods,
+              [periodId]: { ...period, ...updates },
+            },
+          };
+        }),
+
+      addTimeSlot: (periodId, slot) =>
+        set((state) => {
+          const period = state.examPeriods[periodId];
+          if (!period) return state;
+          const newSlot: TimeSlot = { ...slot, id: uuidv4() };
+          return {
+            examPeriods: {
+              ...state.examPeriods,
+              [periodId]: { ...period, slots: [...period.slots, newSlot] },
+            },
+          };
+        }),
+
+      updateTimeSlot: (periodId, slotId, updates) =>
+        set((state) => {
+          const period = state.examPeriods[periodId];
+          if (!period) return state;
+          return {
+            examPeriods: {
+              ...state.examPeriods,
+              [periodId]: {
+                ...period,
+                slots: period.slots.map((s) => (s.id === slotId ? { ...s, ...updates } : s)),
+              },
+            },
+          };
+        }),
+
+      deleteTimeSlot: (periodId, slotId) =>
+        set((state) => {
+          const period = state.examPeriods[periodId];
+          if (!period) return state;
+          return {
+            examPeriods: {
+              ...state.examPeriods,
+              [periodId]: { ...period, slots: period.slots.filter((s) => s.id !== slotId) },
+            },
+          };
+        }),
+
+      toggleTimeSlot: (periodId, slotId) =>
+        set((state) => {
+          const period = state.examPeriods[periodId];
+          if (!period) return state;
+          return {
+            examPeriods: {
+              ...state.examPeriods,
+              [periodId]: {
+                ...period,
+                slots: period.slots.map((s) =>
+                  s.id === slotId ? { ...s, completed: !s.completed } : s
+                ),
+              },
             },
           };
         }),

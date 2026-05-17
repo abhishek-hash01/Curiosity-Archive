@@ -1,5 +1,30 @@
 export type Tag = string;
 
+// ── Exam Mode ────────────────────────────────────────────────
+export type ActivityType = 'study' | 'pyq' | 'revision' | 'mock' | 'break';
+
+export interface TimeSlot {
+  id: string;
+  date: string;        // ISO date "2025-05-23"
+  startTime: string;   // "09:00"
+  endTime: string;     // "11:00"
+  subject: string;
+  activity: ActivityType;
+  note?: string;
+  completed: boolean;
+}
+
+export interface ExamPeriod {
+  id: string;
+  title: string;          // e.g. "End Semester Exams"
+  startDate: string;      // ISO date
+  endDate: string;        // ISO date
+  subjects: string[];     // ["Physics", "Chemistry", "Maths"]
+  slots: TimeSlot[];
+  dailyTargetHours?: number;
+  color?: string;         // optional accent override
+}
+
 export interface Branch {
   id: string;
   label: string;
@@ -57,4 +82,5 @@ export interface Week {
 export interface AppState {
   weeks: Record<string, Week>; // Keyed by Week ID
   projects: Record<string, Project>; // Keyed by Project ID
+  examPeriods: Record<string, ExamPeriod>; // Keyed by ExamPeriod ID
 }

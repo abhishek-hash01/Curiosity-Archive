@@ -6,6 +6,7 @@ export const exportData = () => {
   const dataToExport: AppState = {
     weeks: state.weeks,
     projects: state.projects,
+    examPeriods: state.examPeriods,
   };
 
   const blob = new Blob([JSON.stringify(dataToExport, null, 2)], {

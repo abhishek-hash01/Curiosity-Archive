@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Pause, Play, RotateCcw, CheckCircle2, Zap, Timer, ArrowUp } from 'lucide-react';
+import { X, Pause, Play, RotateCcw, CheckCircle2, Zap, Timer, ArrowUp, Maximize2, Minimize2 } from 'lucide-react';
 import { ActivityType, ExamPeriod, TimeSlot } from '@/types';
 import { useStore } from '@/store/useStore';
 
@@ -91,6 +91,7 @@ export function FocusTimer({ slot, period, onClose }: Props) {
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [maximized, setMaximized] = useState(false);
 
   // Pomodoro state
   const [pomoPhase, setPomoPhase] = useState<'work' | 'break'>('work');
@@ -325,7 +326,198 @@ export function FocusTimer({ slot, period, onClose }: Props) {
     );
   }
 
-  // ── RUNNING PHASE ──
+  // ── MAXIMIZED VIEW ──
+  if (maximized) {
+    return (
+      <div
+        className="fixed inset-0 z-[200] flex flex-col items-center justify-center transition-all duration-500"
+        style={{
+          background: `linear-gradient(135deg, ${cfg.bg} 0%, ${cfg.color}08 50%, ${cfg.bg} 100%)`,
+        }}
+      >
+        {/* Top bar */}
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <span
+              className={`w-2.5 h-2.5 rounded-full ${running ? 'animate-pulse' : ''}`}
+              style={{ backgroundColor: ringColor }}
+            />
+            <span className="text-xs font-bold tracking-widest uppercase" style={{ color: cfg.color }}>
+              {mode === 'pomodoro'
+                ? `Pomodoro ${pomoPhase === 'work' ? `#${pomoCycles + 1}` : 'Break'}`
+                : mode === 'stopwatch'
+                ? 'Stopwatch'
+                : cfg.label}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMaximized(false)}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
+              title="Minimize"
+            >
+              <Minimize2 className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleClose}
+              className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Center content */}
+        <div className="flex flex-col items-center gap-6">
+          {/* Subject */}
+          <div className="text-center">
+            <p className="text-xl sm:text-2xl font-semibold tracking-tight" style={{ color: cfg.textColor }}>
+              {slot.subject}
+            </p>
+            {mode === 'pomodoro' && (
+              <p className="text-xs text-muted-foreground mt-1 font-mono">
+                {pomoPhase === 'work' ? '25 min focus' : '5 min break'} · {pomoCycles} cycles done
+              </p>
+            )}
+            {mode === 'stopwatch' && (
+              <p className="text-xs text-muted-foreground mt-1 font-mono">
+                Counting up — stop when you're done
+              </p>
+            )}
+            {slot.note && (
+              <p className="text-sm text-muted-foreground/70 mt-2 max-w-xs">{slot.note}</p>
+            )}
+          </div>
+
+          {/* Large ring */}
+          <div className="relative w-56 h-56 sm:w-64 sm:h-64">
+            <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+              <circle cx="60" cy="60" r="54" fill="none" stroke={ringColor + '15'} strokeWidth="5" />
+              {mode !== 'stopwatch' && (
+                <circle
+                  cx="60" cy="60" r="54"
+                  fill="none"
+                  stroke={ringColor}
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  strokeDasharray={CIRCUMFERENCE}
+                  strokeDashoffset={dashOffset}
+                  className="transition-all duration-1000 ease-linear"
+                  style={{ filter: running ? `drop-shadow(0 0 16px ${ringColor}80)` : 'none' }}
+                />
+              )}
+              {mode === 'stopwatch' && running && (
+                <circle
+                  cx="60" cy="60" r="54"
+                  fill="none"
+                  stroke={ringColor}
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  strokeDasharray="8 12"
+                  className="animate-spin"
+                  style={{ animationDuration: '8s', filter: `drop-shadow(0 0 16px ${ringColor}80)` }}
+                />
+              )}
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span
+                className="text-5xl sm:text-6xl font-mono font-bold tracking-tight tabular-nums"
+                style={{ color: cfg.textColor }}
+              >
+                {String(displayMin).padStart(2, '0')}:{String(displaySec).padStart(2, '0')}
+              </span>
+              <span className="text-xs font-mono text-muted-foreground mt-2 tracking-widest uppercase">
+                {finished ? '✓ Done!' : running ? (mode === 'stopwatch' ? 'Studying' : 'Focus on') : 'Paused'}
+              </span>
+            </div>
+          </div>
+
+          {/* Elapsed (for countdown modes) */}
+          {mode !== 'stopwatch' && elapsed > 0 && (
+            <span className="text-xs font-mono text-muted-foreground">
+              Studied: {Math.floor(elapsed / 60)}m {elapsed % 60}s
+            </span>
+          )}
+
+          {/* Controls */}
+          <div className="flex items-center gap-4">
+            {mode !== 'stopwatch' && (
+              <button
+                onClick={handleReset}
+                title="Reset"
+                className="w-12 h-12 rounded-full border-2 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all hover:scale-110"
+                style={{ borderColor: cfg.color + '30' }}
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            )}
+
+            {mode === 'stopwatch' && running ? (
+              <button
+                onClick={handleStopStopwatch}
+                title="Stop"
+                className="w-20 h-20 rounded-full flex items-center justify-center text-white font-bold shadow-xl transition-all hover:scale-105 active:scale-95 bg-red-500"
+              >
+                <Pause className="w-7 h-7" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setRunning((r) => !r)}
+                title={running ? 'Pause' : 'Start'}
+                className="w-20 h-20 rounded-full flex items-center justify-center text-white font-bold shadow-xl transition-all hover:scale-105 active:scale-95"
+                style={{
+                  backgroundColor: ringColor,
+                  boxShadow: running ? `0 0 40px ${cfg.glow}` : `0 4px 20px ${cfg.color}30`,
+                }}
+              >
+                {running ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7 ml-1" />}
+              </button>
+            )}
+
+            <button
+              onClick={handleMarkDone}
+              title="Mark done & close"
+              className="w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all hover:scale-110"
+              style={{
+                borderColor: cfg.color + '30',
+                color: slot.completed ? '#16a34a' : cfg.color,
+              }}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Finish prompt */}
+          {finished && (
+            <div className="flex flex-col items-center gap-3 animate-in fade-in duration-300">
+              <span className="text-sm font-mono text-muted-foreground">
+                Studied for {Math.floor(elapsed / 60)} min {elapsed % 60}s
+              </span>
+              <button
+                onClick={handleMarkDone}
+                className="px-8 py-3 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90 flex items-center gap-2 shadow-lg"
+                style={{ backgroundColor: cfg.color }}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Mark Complete &amp; Close
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom info */}
+        <div className="absolute bottom-6 flex items-center gap-4 text-xs font-mono text-muted-foreground/60">
+          <span>{slot.startTime}–{slot.endTime}</span>
+          <span>·</span>
+          <span>{slot.activity}</span>
+          {mode === 'pomodoro' && <><span>·</span><span>{pomoCycles} cycles</span></>}
+        </div>
+      </div>
+    );
+  }
+
+  // ── MINIMIZED (FLOATING) VIEW ──
   return (
     <div
       className="fixed bottom-4 left-3 right-3 sm:left-auto sm:right-6 sm:bottom-6 z-[100] max-w-xs mx-auto sm:mx-0 sm:w-72 sm:max-w-none rounded-2xl border shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300"
@@ -349,9 +541,18 @@ export function FocusTimer({ slot, period, onClose }: Props) {
               : cfg.label}
           </span>
         </div>
-        <button onClick={handleClose} className="text-muted-foreground hover:text-foreground transition-colors" title="Close">
-          <X className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setMaximized(true)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title="Fullscreen"
+          >
+            <Maximize2 className="w-3 h-3" />
+          </button>
+          <button onClick={handleClose} className="text-muted-foreground hover:text-foreground transition-colors" title="Close">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Subject */}
@@ -496,3 +697,4 @@ export function FocusTimer({ slot, period, onClose }: Props) {
     </div>
   );
 }
+

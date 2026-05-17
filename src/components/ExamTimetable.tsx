@@ -100,12 +100,14 @@ export function ExamTimetable({ period, onStartFocus }: Props) {
     return map;
   }, [period.slots]);
 
-  // ── Per-subject breakdown ──
+  // ── Per-subject breakdown (uses actual time when available) ──
   const subjectBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
     for (const slot of period.slots) {
       if (slot.activity === 'break') continue;
-      const mins = timeToMinutes(slot.endTime) - timeToMinutes(slot.startTime);
+      const mins = slot.actualMinutesSpent != null
+        ? slot.actualMinutesSpent
+        : (timeToMinutes(slot.endTime) - timeToMinutes(slot.startTime));
       map[slot.subject] = (map[slot.subject] || 0) + mins;
     }
     return Object.entries(map)
@@ -113,12 +115,17 @@ export function ExamTimetable({ period, onStartFocus }: Props) {
       .map(([subject, mins]) => ({ subject, hours: Math.floor(mins / 60), mins: mins % 60 }));
   }, [period.slots]);
 
-  // ── Summary stats ──
+  // ── Summary stats (actual time when tracked) ──
   const totalSlots = period.slots.length;
   const completedSlots = period.slots.filter((s) => s.completed).length;
   const totalStudyMins = period.slots
     .filter((s) => s.activity !== 'break')
-    .reduce((acc, s) => acc + (timeToMinutes(s.endTime) - timeToMinutes(s.startTime)), 0);
+    .reduce((acc, s) => {
+      const mins = s.actualMinutesSpent != null
+        ? s.actualMinutesSpent
+        : (timeToMinutes(s.endTime) - timeToMinutes(s.startTime));
+      return acc + mins;
+    }, 0);
 
   const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => HOUR_START + i);
 

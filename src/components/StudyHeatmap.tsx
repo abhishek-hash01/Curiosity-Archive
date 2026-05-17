@@ -38,7 +38,9 @@ export function StudyHeatmap({ periods }: Props) {
       for (const slot of p.slots) {
         if (slot.activity === 'break') continue;
         if (!slot.completed) continue; // only count completed sessions
-        const mins = timeToMinutes(slot.endTime) - timeToMinutes(slot.startTime);
+        const mins = slot.actualMinutesSpent != null
+          ? slot.actualMinutesSpent
+          : (timeToMinutes(slot.endTime) - timeToMinutes(slot.startTime));
         map[slot.date] = (map[slot.date] || 0) + mins;
       }
     }

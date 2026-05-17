@@ -34,6 +34,7 @@ interface StoreState extends AppState {
   updateTimeSlot: (periodId: string, slotId: string, updates: Partial<Omit<TimeSlot, 'id'>>) => void;
   deleteTimeSlot: (periodId: string, slotId: string) => void;
   toggleTimeSlot: (periodId: string, slotId: string) => void;
+  addActualTime: (periodId: string, slotId: string, minutes: number) => void;
 }
 
 // Helper for recursive completion toggle
@@ -638,6 +639,25 @@ export const useStore = create<StoreState>()(
                 ...period,
                 slots: period.slots.map((s) =>
                   s.id === slotId ? { ...s, completed: !s.completed } : s
+                ),
+              },
+            },
+          };
+        }),
+
+      addActualTime: (periodId, slotId, minutes) =>
+        set((state) => {
+          const period = state.examPeriods[periodId];
+          if (!period) return state;
+          return {
+            examPeriods: {
+              ...state.examPeriods,
+              [periodId]: {
+                ...period,
+                slots: period.slots.map((s) =>
+                  s.id === slotId
+                    ? { ...s, actualMinutesSpent: (s.actualMinutesSpent || 0) + minutes }
+                    : s
                 ),
               },
             },

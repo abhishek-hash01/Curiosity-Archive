@@ -12,6 +12,7 @@ export interface TimeSlot {
   activity: ActivityType;
   note?: string;
   completed: boolean;
+  actualMinutesSpent?: number;  // real study time logged by focus timer
 }
 
 export interface ExamPeriod {

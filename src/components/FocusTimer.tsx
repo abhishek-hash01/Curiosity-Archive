@@ -87,8 +87,8 @@ export function FocusTimer({ slot, period, onClose }: Props) {
   const [totalSeconds, setTotalSeconds] = useState(60 * 60); // default 1h
 
   // ── Timer state ──
-  const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
-  const [elapsed, setElapsed] = useState(0);
+  // Wall-clock based: immune to background tab throttling
+  const [elapsed, setElapsed] = useState(0);       // total seconds elapsed across pauses
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
   const [maximized, setMaximized] = useState(false);
@@ -98,7 +98,8 @@ export function FocusTimer({ slot, period, onClose }: Props) {
   const [pomoCycles, setPomoCycles] = useState(0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startedAtRef = useRef<number>(0); // epoch ms when session started
+  const startedAtRef = useRef<number>(0);      // Date.now() when last resumed
+  const accumulatedRef = useRef<number>(0);     // seconds accumulated before last pause
 
   // ── Custom duration input ──
   const [customH, setCustomH] = useState('1');
@@ -108,12 +109,15 @@ export function FocusTimer({ slot, period, onClose }: Props) {
     ? (pomoPhase === 'work' ? POMO_WORK : POMO_BREAK)
     : totalSeconds;
 
+  // Compute secondsLeft from elapsed (derived, not state)
+  const secondsLeft = Math.max(0, activeDuration - elapsed);
+
   // ── Start session ──
   const handleStart = (dur: number, selectedMode: TimerMode) => {
     setMode(selectedMode);
     setTotalSeconds(dur);
-    setSecondsLeft(selectedMode === 'pomodoro' ? POMO_WORK : dur);
     setElapsed(0);
+    accumulatedRef.current = 0;
     setFinished(false);
     setPhase('running');
     setRunning(true);
@@ -143,44 +147,65 @@ export function FocusTimer({ slot, period, onClose }: Props) {
       if (pomoPhase === 'work') {
         setPomoCycles((c) => c + 1);
         setPomoPhase('break');
-        setSecondsLeft(POMO_BREAK);
-        setTimeout(() => setRunning(true), 1000);
+        setElapsed(0);
+        accumulatedRef.current = 0;
+        setTimeout(() => {
+          startedAtRef.current = Date.now();
+          setRunning(true);
+        }, 1000);
       } else {
         setPomoPhase('work');
-        setSecondsLeft(POMO_WORK);
+        setElapsed(0);
+        accumulatedRef.current = 0;
       }
     } else {
       setFinished(true);
     }
   }, [mode, pomoPhase]);
 
-  // ── Tick ──
+  // ── Tick: compute elapsed from wall clock ──
   const tick = useCallback(() => {
-    setElapsed((e) => e + 1);
+    const now = Date.now();
+    const currentElapsed = accumulatedRef.current + Math.floor((now - startedAtRef.current) / 1000);
+    setElapsed(currentElapsed);
 
-    if (mode === 'stopwatch') {
-      // Stopwatch: no countdown, just count up
-      return;
-    }
-
-    setSecondsLeft((prev) => {
-      if (prev <= 1) {
+    // Check if countdown is done (not for stopwatch)
+    if (mode !== 'stopwatch') {
+      const currentDuration = mode === 'pomodoro'
+        ? (pomoPhase === 'work' ? POMO_WORK : POMO_BREAK)
+        : totalSeconds;
+      if (currentElapsed >= currentDuration) {
         handleTimerEnd();
-        return 0;
       }
-      return prev - 1;
-    });
-  }, [mode, handleTimerEnd]);
+    }
+  }, [mode, pomoPhase, totalSeconds, handleTimerEnd]);
 
+  // Start/stop interval
   useEffect(() => {
     if (running) {
-      intervalRef.current = setInterval(tick, 1000);
+      startedAtRef.current = Date.now();
+      intervalRef.current = setInterval(tick, 500); // 500ms for snappier UI updates
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      // Save accumulated time when pausing
+      if (startedAtRef.current > 0) {
+        accumulatedRef.current = elapsed;
+      }
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
+  }, [running, tick]);
+
+  // Catch up immediately when tab becomes visible again
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && running) {
+        tick(); // immediately sync with wall clock
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [running, tick]);
 
   // ── Display values ──
@@ -212,7 +237,8 @@ export function FocusTimer({ slot, period, onClose }: Props) {
 
   const handleReset = () => {
     setRunning(false);
-    setSecondsLeft(currentActiveDuration);
+    setElapsed(0);
+    accumulatedRef.current = 0;
     setFinished(false);
   };
 
